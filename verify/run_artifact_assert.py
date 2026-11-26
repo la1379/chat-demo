@@ -17,13 +17,14 @@ REPO = pathlib.Path(r"D:\21952\Documents\p着玩\bro问我DS网页版报表PPT")
 SRC = REPO / "20261121_V4_2026年辅料采购年终汇报.pptx"
 
 # 这些图在源文件里的真实身份（人工看过）：
-#   image3.png  两色品牌 logo（WKChef 橙 + 金龙鱼红）→ 不能动
-#   image7.png  橙色勾选圆形图标（单色）→ 应该动
-#   image8.png  页眉品牌 logo 条 → 不能动
-#   image9.png  待交付明细截图（白底表格）→ 不能动
-#   image5.png  1.8MB 背景照片 → 不能动
+#   image1/2.emf  版面装饰（左侧竖条 + 笑脸，单色矢量，画刷 F15C19）→ 应该动
+#   image3.png    两色品牌 logo（WKChef 橙 + 金龙鱼红）→ 不能动
+#   image7.png    橙色勾选圆形图标（单色）→ 应该动
+#   image8.png    页眉品牌 logo 条 → 不能动
+#   image9.png    待交付明细截图（白底表格）→ 不能动
+#   image5.png    1.8MB 背景照片 → 不能动
 MUST_NOT_CHANGE = ["image3.png", "image5.png", "image8.png", "image9.png"]
-MUST_CHANGE = ["image7.png"]
+MUST_CHANGE = ["image7.png", "image1.emf", "image2.emf"]
 
 
 def digest(blob: bytes) -> str:
@@ -55,7 +56,17 @@ def check_images(src: zipfile.ZipFile, out: zipfile.ZipFile, fail: list) -> dict
         if name in MUST_NOT_CHANGE and not same:
             fail.append(f"{name} 不该被改却被改了（多色 logo / 截图 / 照片）")
         if name in MUST_CHANGE and same:
-            fail.append(f"{name} 应该被改却没改（单色图标）")
+            fail.append(f"{name} 应该被改却没改（单色图标 / 单色矢量装饰）")
+        # EMF 换色只许改 COLORREF 这 4 个字节，文件长度和记录结构必须原样 ——
+        # EMF 里的偏移是绝对地址，长度一变整张图就废了
+        if name.lower().endswith(".emf") and not same:
+            a, b = src.read(n), out.read(n)
+            if len(a) != len(b):
+                fail.append(f"{name} 长度变了：{len(a)} → {len(b)}（EMF 偏移会全废）")
+            else:
+                diff = sum(1 for x, y in zip(a, b) if x != y)
+                if diff > 4:
+                    fail.append(f"{name} 改了 {diff} 个字节，超出单个 COLORREF 的预期")
     return report
 
 

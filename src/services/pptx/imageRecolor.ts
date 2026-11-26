@@ -1,22 +1,29 @@
 /**
- * 给 PPT 里内嵌的位图改配色。
+ * 给 PPT 里内嵌的图形改配色。
  *
  * 核心判断：**这一步不需要任何 AI 模型。**
- * "把橙色图变成蓝色"本质是逐像素的色彩空间运算，
- * 用生成模型重绘会把图的内容改掉（她的素材、照片、截图都会失真），
- * 而这里只改颜色，图还是那张图。
+ * "把橙色图变成蓝色"是色彩空间运算，用生成模型重绘会把图的内容改掉
+ * （她的素材、照片、截图都会失真），而这里只改颜色，图还是那张图。
  *
- * 只处理 PNG：JPEG 有损再编码会累积失真，而且 pptx 里的照片
- * 通常不该换色。遇到 JPEG 明确跳过并在界面上说明。
+ * 处理两类媒体，安全边界完全不同：
+ * - PNG 位图：要逐像素判断「是不是真的算有颜色」，只改单色图
+ * - EMF 矢量图：颜色写在 CREATEBRUSHINDIRECT 之类的对象定义里，
+ *   只改单色图（画刷/画笔颜色全相同）
+ * JPEG 一律跳过：有损再编码会累积失真，而且 pptx 里的照片通常不该换色。
  */
 import { unzipSync, zipSync } from 'fflate'
-import { hueOf, saturationOf } from './recolor.js'
+import { hueOf, saturationOf, shiftHue } from './recolor.js'
 import type { ColorMapping } from './recolor.js'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47]
+/** EMF 的签名在文件头偏移 40 处，是 ASCII " EMF"（前面一个空格） */
+const EMF_SIGNATURE = [0x20, 0x45, 0x4d, 0x46]
 
 const isPng = (data: Uint8Array): boolean =>
   PNG_MAGIC.every((byte, index) => data[index] === byte)
+
+const isEmf = (data: Uint8Array): boolean =>
+  data.length > 44 && EMF_SIGNATURE.every((byte, index) => data[40 + index] === byte)
 
 /** 解码后的位图 */
 type Bitmap = {
@@ -198,6 +205,126 @@ const hue2rgb = (p: number, q: number, t: number): number => {
     return p + (q - p) * (2 / 3 - tt) * 6
   }
   return p
+}
+
+/* ------------------------------------------------------------------ *
+ * EMF 矢量图换色
+ *
+ * EMF 里没有像素，颜色写在若干个「对象定义」记录里：
+ *   CREATEBRUSHINDIRECT (39)  lbStyle(4) lbColor(4 COLORREF) ...
+ *   CREATEPEN           (38)  fnPenStyle(4) nWidth(4) crColor(4)
+ *   EXTCREATEPEN        (95)  ... elpPenStyle(4) nWidth(4) crColor(4) ...
+ * 之后由 SELECTOBJECT 反复引用同一支画刷/画笔来填充多个路径。
+ *
+ * 所以「这张图是什么颜色」不用看像素，只看所有对象定义的颜色即可；
+ * 「能不能换」的判据也和 PNG 一致：只有一种颜色才换。
+ *
+ * COLORREF 是 BGR 顺序（0x00BBGGRR），别按 RGB 读。
+ * ------------------------------------------------------------------ */
+
+/** EMF 记录里颜色所在的字节偏移（相对记录起点） */
+const EMF_COLOR_OFFSETS: Record<number, number> = {
+  38: 12, // CREATEPEN: crColor
+  39: 16, // CREATEBRUSHINDIRECT: lbColor
+  95: 24, // EXTCREATEPEN: crColor
+}
+
+export type EmfColorReport = {
+  /** 出现过的颜色（大写 RRGGBB，已从 COLORREF 转成 RGB 顺序） */
+  colors: string[]
+  /** 有几处对象定义引用了颜色；就是「换色时要改几处」 */
+  definitions: number
+  /** 解析出的记录总数，用于判断文件结构是否正常 */
+  records: number
+}
+
+/** 扫描 EMF 的对象定义记录，取出所有画刷/画笔颜色 */
+export const analyzeEmf = (data: Uint8Array<ArrayBuffer>): EmfColorReport => {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  // 出现次数不必统计，去重即可 —— 判据是「有几种颜色」
+  const seen = new Set<string>()
+  let definitions = 0
+  let records = 0
+  let offset = 0
+
+  while (offset + 8 <= data.length) {
+    const type = view.getUint32(offset, true)
+    const size = view.getUint32(offset + 4, true)
+    // 记录长度至少 8，且不能越界；越界说明这不是我们能安全处理的 EMF
+    if (size < 8 || offset + size > data.length) {
+      break
+    }
+    records += 1
+    const colorOffset = EMF_COLOR_OFFSETS[type]
+    if (colorOffset !== undefined && size >= colorOffset + 4) {
+      const colorref = view.getUint32(offset + colorOffset, true)
+      // COLORREF 0x00BBGGRR → RRGGBB
+      const r = colorref & 0xff
+      const g = (colorref >> 8) & 0xff
+      const b = (colorref >> 16) & 0xff
+      seen.add(
+        `${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b
+          .toString(16)
+          .padStart(2, '0')}`.toUpperCase()
+      )
+      definitions += 1
+    }
+    offset += size
+  }
+
+  return { colors: Array.from(seen), definitions, records }
+}
+
+/**
+ * 把 EMF 里所有对象定义的颜色按色相平移。
+ *
+ * **不能查表替换。** 矢量图里的颜色和 XML 里写的往往不是同一个色值：
+ * 实测这份文件的画刷是 F15C19（橙），而主题里的橙色是 FF6900，
+ * 精确匹配一个都换不到。位图那条路本来就是按色相平移的，矢量图照做才对。
+ *
+ * 只改 COLORREF 那 4 个字节，记录长度和文件长度都不变，
+ * 所以不会破坏任何偏移量 —— EMF 里的偏移是绝对地址，长度一变就全废。
+ *
+ * 返回改了几处；0 表示没有命中的颜色。
+ */
+export const recolorEmf = (data: Uint8Array<ArrayBuffer>, deltaDegrees: number): number => {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  let touched = 0
+  let offset = 0
+
+  while (offset + 8 <= data.length) {
+    const type = view.getUint32(offset, true)
+    const size = view.getUint32(offset + 4, true)
+    if (size < 8 || offset + size > data.length) {
+      break
+    }
+    const colorOffset = EMF_COLOR_OFFSETS[type]
+    if (colorOffset !== undefined && size >= colorOffset + 4) {
+      const colorref = view.getUint32(offset + colorOffset, true)
+      const r = colorref & 0xff
+      const g = (colorref >> 8) & 0xff
+      const b = (colorref >> 16) & 0xff
+      const hex = `${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b
+        .toString(16)
+        .padStart(2, '0')}`.toUpperCase()
+      // 灰阶/黑白不动：填白或描黑的对象换了色，整张图会脏掉
+      if (saturationOf(hex) < 0.12) {
+        offset += size
+        continue
+      }
+      const next = shiftHue(hex, deltaDegrees)
+      if (next !== hex) {
+        const nr = parseInt(next.slice(0, 2), 16)
+        const ng = parseInt(next.slice(2, 4), 16)
+        const nb = parseInt(next.slice(4, 6), 16)
+        // 写回时仍按 COLORREF 的 BGR 顺序
+        view.setUint32(offset + colorOffset, nr | (ng << 8) | (nb << 16), true)
+        touched += 1
+      }
+    }
+    offset += size
+  }
+  return touched
 }
 
 export type ImageKind =
@@ -398,11 +525,40 @@ export const recolorImages = async (
     if (!name.startsWith('ppt/media/')) {
       continue
     }
+
+    // ---- EMF 矢量图：颜色在对象定义记录里，不逐像素 ----
+    if (isEmf(content)) {
+      let report: EmfColorReport
+      try {
+        report = analyzeEmf(content)
+      } catch (error) {
+        skipped.push({
+          path: name,
+          reason: error instanceof Error ? error.message : 'EMF 解析失败',
+        })
+        continue
+      }
+      // 和 PNG 同一条判据：只有单色图才换。
+      // 多色矢量图（品牌 logo 之类）换色会把内容颜色一起转掉。
+      if (report.colors.length > 1) {
+        skipped.push({
+          path: name,
+          reason: `多色矢量图（${report.colors.length} 种颜色），换色会改掉内容`,
+        })
+        continue
+      }
+      const touched = recolorEmf(content, delta)
+      if (touched === 0) {
+        skipped.push({ path: name, reason: '矢量图里没有可换的颜色' })
+        continue
+      }
+      files[name] = content
+      changed += 1
+      continue
+    }
+
     if (!isPng(content)) {
-      const reason = name.toLowerCase().endsWith('.emf')
-        ? 'EMF 矢量图，暂不支持'
-        : '非 PNG 格式，为避免再次有损压缩而跳过'
-      skipped.push({ path: name, reason })
+      skipped.push({ path: name, reason: '非 PNG / EMF 格式，为避免失真而跳过' })
       continue
     }
 
