@@ -129,7 +129,7 @@ export const roleOf = (hex: string): ColorRole => {
 }
 
 /** 从 pptx 字节里统计所有色值（直接色值 + 系统色 + 预设色） */
-export const analyzeColors = (data: Uint8Array): ColorInfo[] => {
+export const analyzeColors = (data: Uint8Array<ArrayBuffer>): ColorInfo[] => {
   const files = unzipSync(data)
   const counter = new Map<string, { count: number; files: Set<string> }>()
 
@@ -210,7 +210,7 @@ export const THEME_SLOT_LABELS: Record<string, string> = {
 }
 
 /** 从 theme 文件读出全部语义槽位，并统计每个槽位在正文里的引用次数 */
-export const analyzeTheme = (data: Uint8Array): ThemeSlot[] => {
+export const analyzeTheme = (data: Uint8Array<ArrayBuffer>): ThemeSlot[] => {
   const files = unzipSync(data)
 
   // 先统计 schemeClr 在各处被引用的次数（排除 theme 自身）
@@ -270,7 +270,10 @@ export const analyzeTheme = (data: Uint8Array): ThemeSlot[] => {
  * 2. <a:sysClr lastClr="RRGGBB"/>     系统色
  * 3. <a:prstClr val="orange"/>        预设色，换成 srgbClr 表达
  */
-export const applyColorMapping = (data: Uint8Array, mapping: ColorMapping): Uint8Array => {
+export const applyColorMapping = (
+  data: Uint8Array<ArrayBuffer>,
+  mapping: ColorMapping
+): Uint8Array<ArrayBuffer> => {
   const files = unzipSync(data)
   // 统一成大写，避免大小写不一致导致漏改
   const normalized = new Map<string, string>()

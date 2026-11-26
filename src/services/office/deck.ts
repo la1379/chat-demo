@@ -7,7 +7,7 @@
  * 版面（16:9，13.333 × 7.5 英寸）与配色在这里集中定义，模版通过 layout 字段选择。
  */
 import PptxGenJS from 'pptxgenjs'
-import type { Column, DeckSpec, Row, SlideSpec } from './spec.js'
+import type { Column, DeckSpec, SlideSpec } from './spec.js'
 import { toFileName } from './spec.js'
 
 /** 讲稿正文配色；与 Office 默认主题差异明显，避免看起来像没做过设计 */
@@ -209,7 +209,7 @@ const addBullets = (slide: PptxGenJS.Slide, bullets: string[], top: number, side
   )
 }
 
-const addTitleSlide = (pptx: PptxGenJS.Presentation, spec: SlideSpec, deck: DeckSpec) => {
+const addTitleSlide = (pptx: PptxGenJS, spec: SlideSpec, deck: DeckSpec) => {
   const slide = pptx.addSlide()
   slide.background = { color: C.primary }
   // 右下角装饰块，避免整页纯色显得空
@@ -256,7 +256,7 @@ const addTitleSlide = (pptx: PptxGenJS.Presentation, spec: SlideSpec, deck: Deck
   return slide
 }
 
-const addSectionSlide = (pptx: PptxGenJS.Presentation, spec: SlideSpec) => {
+const addSectionSlide = (pptx: PptxGenJS, spec: SlideSpec) => {
   const slide = pptx.addSlide()
   slide.background = { color: C.soft }
   slide.addShape('rect', {
@@ -293,7 +293,7 @@ const addSectionSlide = (pptx: PptxGenJS.Presentation, spec: SlideSpec) => {
   return slide
 }
 
-const addClosingSlide = (pptx: PptxGenJS.Presentation, spec: SlideSpec) => {
+const addClosingSlide = (pptx: PptxGenJS, spec: SlideSpec) => {
   const slide = pptx.addSlide()
   slide.background = { color: C.primary }
   slide.addText(spec.title ?? '谢谢', {

@@ -6,7 +6,7 @@
  * zip 用项目已有的 fflate，不新增依赖。
  */
 import { strToU8, zipSync } from 'fflate'
-import type { Column, Row, SheetSpec, WorkbookSpec } from './spec.js'
+import type { Column, SheetSpec, WorkbookSpec } from './spec.js'
 import { toFileName } from './spec.js'
 
 /** XML 文本转义；& 必须最先替换，否则会二次转义 */
@@ -190,13 +190,13 @@ const sheetName = (name: string, index: number, used: Set<string>): string => {
   return candidate
 }
 
-const buildSheetXml = (sheet: SheetSpec): string => {
+const buildSheetXml = (sheet: SheetSpec, title: string | undefined): string => {
   const columnCount = Math.max(sheet.columns.length, ...sheet.rows.map((row) => row.length), 0)
   const columns: Column[] = Array.from({ length: columnCount }, (_, index) => {
     return sheet.columns[index] ?? { title: '', type: 'text' }
   })
 
-  const hasTitle = Boolean(sheet.title)
+  const hasTitle = Boolean(title)
   const titleRow = 1
   const headerRow = hasTitle ? 2 : 1
   const firstDataRow = headerRow + 1
@@ -207,7 +207,7 @@ const buildSheetXml = (sheet: SheetSpec): string => {
     const merged = `A${titleRow}:${colLetter(Math.max(columnCount - 1, 0))}${titleRow}`
     rowsXml.push(
       `<row r="${titleRow}" ht="28" customHeight="1">` +
-        `<c r="A${titleRow}" s="11" t="inlineStr"><is><t xml:space="preserve">${esc(sheet.title ?? '')}</t></is></c>` +
+        `<c r="A${titleRow}" s="11" t="inlineStr"><is><t xml:space="preserve">${esc(title ?? '')}</t></is></c>` +
         `</row>`
     )
     void merged
@@ -432,7 +432,10 @@ export const buildWorkbook = (spec: WorkbookSpec): { blob: Blob; filename: strin
     'xl/styles.xml': strToU8(buildStylesXml()),
   }
   spec.sheets.forEach((sheet, index) => {
-    files[`xl/worksheets/sheet${index + 1}.xml`] = strToU8(buildSheetXml(sheet))
+    // 工作簿标题只放在第一张表的首行，避免每张表都重复一遍
+    files[`xl/worksheets/sheet${index + 1}.xml`] = strToU8(
+      buildSheetXml(sheet, index === 0 ? spec.title : undefined)
+    )
   })
 
   const zipped = zipSync(files, { level: 6 })

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { isGateEnabled, tryPassGate } from '../../services/gate.js'
+import { isGateEnabled, tryPassGate } from '../../app/gate.js'
 
 /** 口令输入界面：整页居中，不暴露任何应用内容 */
 export const Gate = ({ onPass }: { onPass: () => void }) => {

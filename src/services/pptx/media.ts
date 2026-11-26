@@ -36,7 +36,7 @@ const PROMINENT_BYTES = 200 * 1024
  * 只看元信息，不解码像素 —— 解码全部图片代价太大，
  * 而体积本身已经足够区分「背景大图」和「小图标」。
  */
-export const analyzeMedia = (data: Uint8Array): MediaColorRisk[] => {
+export const analyzeMedia = (data: Uint8Array<ArrayBuffer>): MediaColorRisk[] => {
   const files = unzipSync(data)
   const result: MediaColorRisk[] = []
   for (const [name, content] of Object.entries(files)) {

@@ -78,6 +78,10 @@ export const createConfig = ({
     ],
   },
   plugins: [
+    // PptxGenJS 里有一段 `import('node:fs')` / `import('node:https')` 的 Node 分支，
+    // 运行时由 isNode 守卫，浏览器永远走不到；但打包器只看 URL scheme 就报错。
+    // 让它们在编译期被忽略，而不是给浏览器塞 fs 垫片。
+    new rspack.IgnorePlugin({ resourceRegExp: /^node:(fs|https)$/ }),
     // 经典 defer 脚本支持 file:// 页面的资源加载
     new rspack.HtmlRspackPlugin({
       template: './src/index.html',

@@ -10,7 +10,7 @@
  * 通常不该换色。遇到 JPEG 明确跳过并在界面上说明。
  */
 import { unzipSync, zipSync } from 'fflate'
-import { hueOf, luminanceOf, saturationOf } from './recolor.js'
+import { hueOf, saturationOf } from './recolor.js'
 import type { ColorMapping } from './recolor.js'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47]
@@ -30,7 +30,7 @@ type Bitmap = {
  * 用浏览器自带的解码器把 PNG 变成像素。
  * 自己实现 PNG 解压要处理全部 filter 类型和位深，得不偿失。
  */
-const decodePng = async (bytes: Uint8Array): Promise<Bitmap> => {
+const decodePng = async (bytes: Uint8Array<ArrayBuffer>): Promise<Bitmap> => {
   const blob = new Blob([bytes], { type: 'image/png' })
   const bitmap = await createImageBitmap(blob)
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
@@ -50,7 +50,7 @@ const decodePng = async (bytes: Uint8Array): Promise<Bitmap> => {
 }
 
 /** 像素编码回 PNG */
-const encodePng = async (bitmap: Bitmap): Promise<Uint8Array> => {
+const encodePng = async (bitmap: Bitmap): Promise<Uint8Array<ArrayBuffer>> => {
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
   const ctx = canvas.getContext('2d')
   if (!ctx) {
@@ -208,7 +208,7 @@ const classify = (vividRatio: number, hueConcentration: number): ImageKind => {
 }
 
 /** 分析一张位图的色彩复杂度（抽样，不遍历全部像素） */
-const profileBitmap = async (path: string, bytes: Uint8Array): Promise<ImageProfile> => {
+const profileBitmap = async (path: string, bytes: Uint8Array<ArrayBuffer>): Promise<ImageProfile> => {
   const bitmap = await decodePng(bytes)
   const { pixels, width, height } = bitmap
   const total = width * height
@@ -270,7 +270,7 @@ const profileBitmap = async (path: string, bytes: Uint8Array): Promise<ImageProf
 
 export type ImageRecolorResult = {
   /** 改好的 pptx */
-  data: Uint8Array
+  data: Uint8Array<ArrayBuffer>
   /** 实际改了几张图 */
   changed: number
   /** 跳过的图片路径与原因 */
@@ -280,7 +280,7 @@ export type ImageRecolorResult = {
 }
 
 /** 先分析所有图片，让界面能显示"哪些能改、哪些会毁图" */
-export const profileImages = async (data: Uint8Array): Promise<ImageProfile[]> => {
+export const profileImages = async (data: Uint8Array<ArrayBuffer>): Promise<ImageProfile[]> => {
   const files = unzipSync(data)
   const profiles: ImageProfile[] = []
   for (const [name, content] of Object.entries(files)) {
@@ -306,7 +306,7 @@ export const profileImages = async (data: Uint8Array): Promise<ImageProfile[]> =
  * @param options.includeComplex 是否连复杂图像一起改（默认否）
  */
 export const recolorImages = async (
-  data: Uint8Array,
+  data: Uint8Array<ArrayBuffer>,
   mapping: ColorMapping,
   options: { preserveLuminance?: boolean; minSaturation?: number; includeComplex?: boolean } = {}
 ): Promise<ImageRecolorResult> => {
