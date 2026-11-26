@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,13 +20,16 @@ const cssLoader = {
 type ConfigOptions = {
   /** 公开 API 的地址，注入为 __API_ORIGIN__ */
   apiOrigin?: string
+  /** 访问口令的 SHA-256 十六进制值，注入为 __ACCESS_PASSWORD_HASH__；留空则不启用口令门 */
+  accessPasswordHash?: string
   /** 开发服务器配置，支持本地接口代理 */
   devServer?: Configuration['devServer']
 }
 
 /** 创建构建配置，支持自定义 API 地址和开发服务器选项 */
 export const createConfig = ({
-  apiOrigin = 'https://api.deepseek.com',
+  apiOrigin = '',
+  accessPasswordHash = '',
   devServer,
 }: ConfigOptions = {}): Configuration => ({
   mode: dev ? 'development' : 'production',
@@ -80,7 +84,11 @@ export const createConfig = ({
       scriptLoading: 'defer',
       meta: { 'application-version': version },
     }),
-    new rspack.DefinePlugin({ __API_ORIGIN__: JSON.stringify(apiOrigin) }),
+    new rspack.DefinePlugin({
+      // 未显式指定时保留官方默认地址
+      __API_ORIGIN__: JSON.stringify(apiOrigin || 'https://api.deepseek.com'),
+      __ACCESS_PASSWORD_HASH__: JSON.stringify(accessPasswordHash),
+    }),
     new rspack.CopyRspackPlugin({
       patterns: [{ from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' }],
     }),
@@ -90,4 +98,17 @@ export const createConfig = ({
 })
 
 // eslint-disable-next-line import/no-default-export
-export default defineConfig(createConfig())
+export default defineConfig(() => {
+  // 口令只以 SHA-256 形式进入产物；明文从不落盘、从不入库
+  const password = (process.env.ACCESS_PASSWORD ?? '').trim()
+  const accessPasswordHash = password
+    ? createHash('sha256').update(password, 'utf8').digest('hex')
+    : ''
+  if (password) {
+    console.log(`访问口令已启用（哈希前 8 位：${accessPasswordHash.slice(0, 8)}…）`)
+  }
+  return createConfig({
+    apiOrigin: process.env.API_ORIGIN ?? '',
+    accessPasswordHash,
+  })
+})

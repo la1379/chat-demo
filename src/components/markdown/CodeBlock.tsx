@@ -9,6 +9,7 @@ import {
 import { IconCheckOutline16, IconCopyOutline16 } from '../base/icons.js'
 import { showToast } from '../base/toastState.js'
 import { copyText } from '../../utils/clipboard.js'
+import { FileCard, fileKindOf } from './FileCard.js'
 import { MermaidDiagram } from './MermaidDiagram.js'
 import styles from './CodeBlock.module.css'
 
@@ -80,6 +81,8 @@ export const CodeBlock = memo(function CodeBlock({
   loading?: boolean
 }) {
   const isMermaid = infostring.toLowerCase() === 'mermaid'
+  // 报表 / 演示文稿：模型按约定输出受约束的 JSON，这里换成可下载的文件卡片
+  const fileKind = fileKindOf(infostring)
   const [showDiagram, setShowDiagram] = useState(true)
   // 语言包注册在全局 Prism 上，每次渲染直接判断；加载完成后触发一次重渲染
   const rerender = useReducer((n: number) => n + 1, 0)[1]
@@ -103,6 +106,10 @@ export const CodeBlock = memo(function CodeBlock({
     const name = lang !== null && loaded ? lang : 'plaintext'
     return Prism.highlight(code, Prism.languages[name], name)
   }, [code, lang, loaded])
+  // 文件卡片自带标题栏和操作按钮，不套代码块的外壳
+  if (fileKind) {
+    return <FileCard code={code} kind={fileKind} loading={loading} />
+  }
   return (
     <div className="md-code-block">
       <div className="md-code-block-banner">

@@ -1,0 +1,239 @@
+.card {
+  margin: 12px 0;
+  border: 1px solid var(--dsw-alias-border-secondary);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-elevated);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.meta {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.button {
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-elevated);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      opacity: 0.86;
+    }
+  }
+}
+
+.toggle {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+}
+
+.body {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--dsw-alias-border-secondary);
+  padding-top: 12px;
+}
+
+/* 预览里的表格可能很宽，横向滚动而不是压缩列 */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+
+  th,
+  td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--dsw-alias-border-secondary);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--dsw-alias-interactive-bg-hover);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+  }
+
+  /* 数值右对齐，扫一眼就能比较大小 */
+  .numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.more {
+  padding: 8px 2px 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tab,
+.tabActive {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-secondary);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: transparent;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+.slideList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slideItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  font-size: 13px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.slideNo {
+  flex: none;
+  width: 22px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.slideTitle {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slideMeta {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+/* 生成中：细条纹动画，提示它在动而不是卡住 */
+.skeleton {
+  height: 8px;
+  margin: 0 12px 14px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--dsw-alias-interactive-bg-hover) 25%,
+    var(--dsw-alias-border-secondary) 50%,
+    var(--dsw-alias-interactive-bg-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: fileCardShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes fileCardShimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.raw {
+  max-height: 240px;
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

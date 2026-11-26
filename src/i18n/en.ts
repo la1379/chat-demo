@@ -178,4 +178,12 @@ export const en = {
   latestReminderLanguage: 'English',
   settingsLocaleZhCN: 'Simplified Chinese',
   settingsLocaleEnUS: 'English',
+  fileCardXlsxTitle: 'Excel workbook',
+  fileCardPptxTitle: 'Presentation',
+  fileCardDownload: 'Download',
+  fileCardGenerating: 'Generating…',
+  fileCardInvalid: 'The file content was malformed, showing the raw text instead',
+  fileCardSheets: '{count} sheets',
+  fileCardSlides: '{count} slides',
+  fileCardPreview: 'Preview',
 } satisfies Record<keyof typeof zh, string>

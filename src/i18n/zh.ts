@@ -169,4 +169,12 @@ export const zh = {
   latestReminderLanguage: '中文',
   settingsLocaleZhCN: '简体中文',
   settingsLocaleEnUS: 'English',
+  fileCardXlsxTitle: 'Excel 报表',
+  fileCardPptxTitle: '演示文稿',
+  fileCardDownload: '下载',
+  fileCardGenerating: '正在生成…',
+  fileCardInvalid: '文件内容格式有误，已按原文显示',
+  fileCardSheets: '{count} 个工作表',
+  fileCardSlides: '{count} 页',
+  fileCardPreview: '预览',
 } as const
