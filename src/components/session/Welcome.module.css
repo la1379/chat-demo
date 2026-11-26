@@ -28,6 +28,40 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* 不需要模型的快捷入口：低调地放在输入框下方 */
+.shortcut {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s;
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--dsw-alias-label-tertiary);
+      color: var(--dsw-alias-label-primary);
+      background: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-button-primary-fill);
+    outline-offset: 2px;
+  }
+}
+
 @media (max-width: 439px) {
   .greeting {
     font-size: 20px;

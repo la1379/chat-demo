@@ -543,3 +543,35 @@ export const IconToastError16 = () => (
     />
   </svg>
 )
+
+/** 调色板：改配色入口 */
+export const IconPaletteOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M8 1.25a6.75 6.75 0 0 0 0 13.5c.9 0 1.55-.63 1.55-1.44 0-.38-.15-.72-.4-.97a1.4 1.4 0 0 1-.4-.98c0-.8.65-1.44 1.45-1.44h1.32a3.23 3.23 0 0 0 3.23-3.23C14.75 4.03 11.73 1.25 8 1.25Z"
+      stroke="currentColor"
+      strokeWidth={1.2}
+      strokeLinejoin="round"
+    />
+    <circle cx="4.85" cy="6.1" r="1" fill="currentColor" />
+    <circle cx="9.55" cy="4.55" r="1" fill="currentColor" />
+    <circle cx="11.9" cy="7.85" r="1" fill="currentColor" />
+    <circle cx="4.05" cy="9.75" r="1" fill="currentColor" />
+  </svg>
+)
+
+/** 锁定：该颜色不参与换色 */
+export const IconLockFill14 = () => (
+  <svg width={14} height={14} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4.375 6.125V4.375a2.625 2.625 0 0 1 5.25 0v1.75" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+    <rect x="2.625" y="6.125" width="8.75" height="6.125" rx="1.4" fill="currentColor" />
+  </svg>
+)
+
+/** 未锁定：默认状态 */
+export const IconUnlockOutline14 = () => (
+  <svg width={14} height={14} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4.375 6.125V4.375a2.625 2.625 0 0 1 5.25 0" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+    <rect x="2.625" y="6.125" width="8.75" height="6.125" rx="1.4" stroke="currentColor" strokeWidth={1.2} />
+  </svg>
+)

@@ -10,3 +10,5 @@ build/
 !.env.example
 tmp/
 verify/dist/
+verify/shots/
+verify/ui-downloaded.pptx

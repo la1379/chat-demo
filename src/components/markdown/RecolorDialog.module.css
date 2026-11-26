@@ -1,0 +1,29 @@
+/*
+ * 改配色弹窗的容器。
+ * 面板自己会切到 flat 变体（见 RecolorPanel 的 flat 参数），
+ * 所以这里只负责尺寸与滚动，不再重复处理边框。
+ */
+.dialog {
+  --modal-header-gap: 10px;
+  width: 720px;
+  max-height: calc(100vh - 64px);
+  padding: 20px 22px 18px;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-color: var(--scroll-color) transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+@media not all and (min-width: 768px) {
+  .dialog {
+    width: 100%;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 32px);
+    padding: 16px 14px 12px;
+  }
+}

@@ -177,4 +177,7 @@ export const zh = {
   fileCardSheets: '{count} 个工作表',
   fileCardSlides: '{count} 页',
   fileCardPreview: '预览',
+  recolorEntry: '改 PPT 配色',
+  recolorDialogTitle: '改 PPT 配色',
+  recolorShortcut: '给 PPT 换套配色',
 } as const

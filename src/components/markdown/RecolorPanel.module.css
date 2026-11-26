@@ -1,15 +1,27 @@
 .drop {
   margin: 12px 0;
   padding: 24px 20px;
-  border: 1px dashed var(--dsw-alias-border-secondary);
+  border: 1px dashed var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--dsw-alias-bg-elevated);
+  background: var(--dsw-alias-bg-layer-2);
   text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &:hover {
+    border-color: var(--dsw-alias-label-tertiary);
+  }
 }
 
 .dropTitle {
   margin: 0 0 6px;
   color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dropTitleActive {
+  margin: 0 0 6px;
+  color: var(--dsw-alias-button-primary-fill);
   font-size: 15px;
   font-weight: 600;
 }
@@ -23,10 +35,18 @@
 
 .panel {
   margin: 12px 0;
-  border: 1px solid var(--dsw-alias-border-secondary);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--dsw-alias-bg-elevated);
+  background: var(--dsw-alias-bg-layer-2);
   overflow: hidden;
+}
+
+/* 弹窗里用：外面已经有圆角卡片，这一层只保留分隔线 */
+.panelFlat {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .head {
@@ -34,7 +54,7 @@
   align-items: baseline;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
 .fileName {
@@ -59,7 +79,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
 .presetLabel {
@@ -70,6 +90,7 @@
 /* 改不动的图片要显式提示，不能让用户下载后才发现 */
 .warning {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 10px 14px 0;
   padding: 10px 12px;
@@ -82,6 +103,12 @@
   strong {
     flex: none;
     color: #b06f00;
+  }
+
+  /* 说明文字独占一行，勾选框和按钮在下一行 —— 窄屏时不会把文字挤成窄列 */
+  > span {
+    flex: 1 1 100%;
+    min-width: 0;
   }
 }
 
@@ -108,7 +135,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
 .swatchRow {
@@ -131,7 +158,7 @@
 /* 主题色：改一处影响很多处，所以单独成区放在最上面 */
 .themeBlock {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
@@ -205,7 +232,7 @@
   gap: 5px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--dsw-alias-border-secondary);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 7px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
@@ -241,6 +268,16 @@
   list-style: none;
 }
 
+/*
+ * 弹窗里已经有一层滚动，列表不要再来一层 ——
+ * 嵌套滚动在手机上几乎没法用（手指不知道该滚哪一层），
+ * 也让 sticky 的按钮栏算不准内容高度。
+ */
+.panelFlat .list {
+  max-height: none;
+  overflow: visible;
+}
+
 .row,
 .rowLocked {
   display: flex;
@@ -258,7 +295,7 @@
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid var(--dsw-alias-border-secondary);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
   background: none;
   cursor: pointer;
@@ -297,8 +334,12 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
   cursor: pointer;
+  /* 图标居中，避免不同字体下偏移 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   @media (hover: hover) {
     &:hover {
@@ -323,7 +364,15 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-top: 1px solid var(--dsw-alias-border-secondary);
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* 弹窗里列表很长时，下载按钮不能跟着滚出视野 —— 主操作必须一直在 */
+.panelFlat .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--dsw-alias-bg-layer-2);
 }
 
 .primary {
@@ -332,11 +381,18 @@
   padding: 0 16px;
   border: none;
   border-radius: 8px;
-  background: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-elevated);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-inverted);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      background: var(--dsw-alias-button-primary-hover);
+    }
+  }
 
   &:disabled {
     opacity: 0.5;

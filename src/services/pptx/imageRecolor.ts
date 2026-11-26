@@ -162,11 +162,21 @@ const toLinear = (value: number): number =>
 
 const hue2rgb = (p: number, q: number, t: number): number => {
   let tt = t
-  if (tt < 0) tt += 1
-  if (tt > 1) tt -= 1
-  if (tt < 1 / 6) return p + (q - p) * 6 * tt
-  if (tt < 1 / 2) return q
-  if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6
+  if (tt < 0) {
+    tt += 1
+  }
+  if (tt > 1) {
+    tt -= 1
+  }
+  if (tt < 1 / 6) {
+    return p + (q - p) * 6 * tt
+  }
+  if (tt < 1 / 2) {
+    return q
+  }
+  if (tt < 2 / 3) {
+    return p + (q - p) * (2 / 3 - tt) * 6
+  }
   return p
 }
 
@@ -325,8 +335,12 @@ export const recolorImages = async (
       continue
     }
     let diff = toHue - fromHue
-    if (diff > 180) diff -= 360
-    if (diff < -180) diff += 360
+    if (diff > 180) {
+      diff -= 360
+    }
+    if (diff < -180) {
+      diff += 360
+    }
     const weight = saturationOf(from)
     if (weight > bestWeight) {
       bestWeight = weight

@@ -186,4 +186,7 @@ export const en = {
   fileCardSheets: '{count} sheets',
   fileCardSlides: '{count} slides',
   fileCardPreview: 'Preview',
+  recolorEntry: 'Recolor PPT',
+  recolorDialogTitle: 'Recolor a presentation',
+  recolorShortcut: 'Restyle a deck',
 } satisfies Record<keyof typeof zh, string>

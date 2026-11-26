@@ -375,11 +375,21 @@ export const shiftHue = (hex: string, deltaDegrees: number): string => {
 
   const hue2rgb = (p: number, q: number, t: number) => {
     let tt = t
-    if (tt < 0) tt += 1
-    if (tt > 1) tt -= 1
-    if (tt < 1 / 6) return p + (q - p) * 6 * tt
-    if (tt < 1 / 2) return q
-    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6
+    if (tt < 0) {
+      tt += 1
+    }
+    if (tt > 1) {
+      tt -= 1
+    }
+    if (tt < 1 / 6) {
+      return p + (q - p) * 6 * tt
+    }
+    if (tt < 1 / 2) {
+      return q
+    }
+    if (tt < 2 / 3) {
+      return p + (q - p) * (2 / 3 - tt) * 6
+    }
     return p
   }
 
@@ -492,7 +502,11 @@ export const buildPaletteMapping = (
 
   let delta = targetHue - currentHue
   // 取最短旋转方向，避免大幅绕圈导致中间色失真
-  if (delta > 180) delta -= 360
-  if (delta < -180) delta += 360
+  if (delta > 180) {
+    delta -= 360
+  }
+  if (delta < -180) {
+    delta += 360
+  }
   return buildHueShiftMapping(colors, delta, lockHexes, targetHue)
 }

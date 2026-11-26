@@ -1,6 +1,7 @@
 import { useTranslate } from '../../i18n/index.js'
 import { memo, useMemo, useRef, useState } from 'react'
 import { showToast } from '../base/toastState.js'
+import { IconLockFill14, IconUnlockOutline14 } from '../base/icons.js'
 import {
   analyzeColors,
   analyzeTheme,
@@ -16,6 +17,10 @@ import type { MediaColorRisk } from '../../services/pptx/media.js'
 import { recolorImages } from '../../services/pptx/imageRecolor.js'
 import { downloadBlob, toFileName } from '../../services/office/spec.js'
 import styles from './RecolorPanel.module.css'
+
+/** 删掉一个键并返回新对象；用展开+delete 会被 lint 判为字典模式降级 */
+const withoutKey = (mapping: ColorMapping, key: string): ColorMapping =>
+  Object.fromEntries(Object.entries(mapping).filter(([name]) => name !== key))
 
 /** 单个颜色的编辑行 */
 const ColorRow = memo(function ColorRow({
@@ -52,7 +57,7 @@ const ColorRow = memo(function ColorRow({
         onClick={onLock}
         title={locked ? '取消锁定（该颜色不变）' : '锁定此颜色不变'}
       >
-        {locked ? '🔒' : '🔓'}
+        {locked ? <IconLockFill14 /> : <IconUnlockOutline14 />}
       </button>
     </li>
   )
@@ -63,8 +68,17 @@ const ColorRow = memo(function ColorRow({
  *
  * 只动颜色值，文件其他部分原样保留，所以内容和排版自动不变 ——
  * 这正是「内容和排版均未改动，只改配色」这个需求的实现方式。
+ *
+ * `flat` 用于弹窗内：外面已经有圆角卡片，再套一层边框会显得框套框。
  */
-export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: boolean }) {
+export const RecolorPanel = memo(function RecolorPanel({
+  loading,
+  flat = false,
+}: {
+  loading?: boolean
+  /** 去掉卡片外壳，供弹窗复用 */
+  flat?: boolean
+}) {
   const t = useTranslate()
   const [fileName, setFileName] = useState('')
   const [raw, setRaw] = useState<Uint8Array<ArrayBuffer> | null>(null)
@@ -73,6 +87,8 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
   const [media, setMedia] = useState<MediaColorRisk[]>([])
   // 图片换色：默认开启，但让用户能关掉（照片类素材不该换色）
   const [withImages, setWithImages] = useState(true)
+  // 拖拽悬停高亮
+  const [dragging, setDragging] = useState(false)
   const [mapping, setMapping] = useState<ColorMapping>({})
   const [locked, setLocked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -153,25 +169,47 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
     }
   }
 
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept=".pptx"
+      hidden
+      onChange={(event) => {
+        const file = event.target.files?.[0]
+        if (file) {
+          void loadFile(file)
+        }
+        event.target.value = ''
+      }}
+    />
+  )
+
   if (!raw) {
     return (
-      <div className={styles.drop}>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pptx"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) {
-              void loadFile(file)
-            }
-            event.target.value = ''
-          }}
-        />
-        <p className={styles.dropTitle}>上传 PPT，改配色</p>
+      <div
+        className={styles.drop}
+        // 弹窗里最常见的动作是把文件拖进来，所以整个框都是放置区
+        onDragOver={(event) => {
+          event.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault()
+          setDragging(false)
+          const file = event.dataTransfer.files?.[0]
+          if (file) {
+            void loadFile(file)
+          }
+        }}
+      >
+        {fileInput}
+        <p className={dragging ? styles.dropTitleActive : styles.dropTitle}>上传 PPT，改配色</p>
         <p className={styles.dropHint}>
           内容和排版完全不动，只换颜色。适合把一套 PPT 整体换成更商务的配色。
+          <br />
+          把 .pptx 拖到这里，或点下面的按钮。
         </p>
         <button
           type="button"
@@ -191,7 +229,8 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
   const themeReferences = theme.reduce((sum, slot) => sum + slot.references, 0)
 
   return (
-    <div className={styles.panel}>
+    <div className={flat ? `${styles.panel} ${styles.panelFlat}` : styles.panel}>
+      {fileInput}
       <div className={styles.head}>
         <span className={styles.fileName}>{fileName}</span>
         <span className={styles.fileMeta}>
@@ -300,11 +339,7 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
                   return next
                 })
                 // 锁定时把该颜色从现有映射里删掉
-                setMapping((prev) => {
-                  const next = { ...prev }
-                  delete next[color.hex]
-                  return next
-                })
+                setMapping((prev) => withoutKey(prev, color.hex))
               }}
             >
               <span className={styles.dot} style={{ background: `#${color.hex}` }} />#{color.hex}
@@ -330,11 +365,7 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
                 }
                 return next
               })
-              setMapping((prev) => {
-                const next = { ...prev }
-                delete next[color.hex]
-                return next
-              })
+              setMapping((prev) => withoutKey(prev, color.hex))
             }}
             onChange={(hex) => setMapping((prev) => ({ ...prev, [color.hex]: hex }))}
           />
