@@ -23,7 +23,10 @@ type Settings = {
 }
 
 const KEYS = {
-  apiKey: 'chat-demo:api-key',
+  /** 旧版单一 Key；只在迁移时读，新数据按服务商分开存 */
+  apiKeyLegacy: 'chat-demo:api-key',
+  /** 按服务商分开存：prefix + providerId */
+  apiKeyPrefix: 'chat-demo:api-key:',
   provider: 'chat-demo:provider',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
@@ -52,6 +55,28 @@ const write = (key: string, value: string | null) => {
   } catch {
     // 存储不可用时只在内存中生效
   }
+}
+
+/** 当前服务商对应的 Key 存储键 */
+const apiKeyOf = (provider: ProviderId): string => `${KEYS.apiKeyPrefix}${provider}`
+
+const readApiKey = (provider: ProviderId): string | null => read(apiKeyOf(provider))
+
+/**
+ * 迁移旧版的单一 Key。
+ *
+ * 旧数据只有一个 chat-demo:api-key，不知道属于哪家。按「当前选中的服务商」
+ * 迁过去是最合理的推断 —— 用户填它的时候用的就是当前这家。
+ * 迁完删掉旧键，避免下次又迁一遍。
+ */
+const migrateLegacyApiKey = (provider: ProviderId): string | null => {
+  const legacy = read(KEYS.apiKeyLegacy)
+  if (!legacy) {
+    return null
+  }
+  write(apiKeyOf(provider), legacy)
+  write(KEYS.apiKeyLegacy, null)
+  return legacy
 }
 
 /** 位置选择模式跟随浏览器语言，与应用内选择的界面语言无关。 */
@@ -91,9 +116,16 @@ const initialThemePreference = (): ThemePreference => {
 /** 未保存过时使用服务端默认音色 stella（海星） */
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
+const initialProvider = (): ProviderId => {
+  const saved = read(KEYS.provider) as ProviderId | null
+  return saved === 'bailian' ? 'bailian' : 'deepseek'
+}
+
+const providerAtBoot = initialProvider()
+
 export const useSettings = create<Settings>(() => ({
-  apiKey: read(KEYS.apiKey),
-  provider: (read(KEYS.provider) as ProviderId | null) ?? 'deepseek',
+  apiKey: readApiKey(providerAtBoot) ?? migrateLegacyApiKey(providerAtBoot),
+  provider: providerAtBoot,
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -125,23 +157,22 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
 }
 
 export const setApiKey = (apiKey: string | null) => {
-  write(KEYS.apiKey, apiKey)
+  write(apiKeyOf(useSettings.getState().provider), apiKey)
   useSettings.setState({ apiKey })
 }
 
 /**
  * 换服务商。
  *
- * 同时清空 Key：两家的 Key 互不通用，留着上一家的 Key 只会得到
- * 「填好了却一直 401」这种最难查的状态。
+ * 两家的 Key 分开存，切换只是换用哪一份 —— 不会出现「拿 A 家的 Key 打 B 家」
+ * 这种最难查的状态，也不用逼用户重填。每家填过一次就一直记得。
  */
 export const setProvider = (provider: ProviderId) => {
   if (useSettings.getState().provider === provider) {
     return
   }
   write(KEYS.provider, provider)
-  write(KEYS.apiKey, null)
-  useSettings.setState({ provider, apiKey: null })
+  useSettings.setState({ provider, apiKey: readApiKey(provider) })
 }
 
 export const setThinking = (thinking: boolean) => {

@@ -7,8 +7,8 @@ import styles from './Settings.module.css'
 /**
  * 服务商选择。
  *
- * 换服务商会清空已保存的 Key —— 两家的 Key 互不通用，留着上一家的只会
- * 得到「明明填了却一直 401」这种最难查的状态。所以这里如实提示一句。
+ * 两家的 Key 分开存，切换只是换用哪一份：不会拿 A 家的 Key 去打 B 家，
+ * 也不用逼用户重填。
  */
 export const ProviderField = () => {
   const t = useTranslate()
