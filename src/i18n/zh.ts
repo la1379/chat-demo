@@ -202,4 +202,8 @@ export const zh = {
   mailShowDraft: '看草稿',
   checklistGenerating: '正在整理清单…',
   checklistProgress: '{done}/{total} 已完成',
+  balanceCheck: '查余额',
+  balanceChecking: '查询中…',
+  balanceRefresh: '重新查询',
+  balanceUnavailable: '已不可用',
 } as const

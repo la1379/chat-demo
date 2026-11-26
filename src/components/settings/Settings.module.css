@@ -500,3 +500,54 @@
     max-width: 100%;
   }
 }
+
+/* 余额：和 Key 放在一起，查完才显示数字 */
+.balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.balanceButton {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      color: var(--dsw-alias-label-primary);
+      background: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.balanceValue {
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.balanceEmpty {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.balanceError {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}

@@ -211,4 +211,8 @@ export const en = {
   mailShowDraft: 'Show draft',
   checklistGenerating: 'Building checklist…',
   checklistProgress: '{done}/{total} done',
+  balanceCheck: 'Check balance',
+  balanceChecking: 'Checking…',
+  balanceRefresh: 'Refresh',
+  balanceUnavailable: 'unavailable',
 } satisfies Record<keyof typeof zh, string>
