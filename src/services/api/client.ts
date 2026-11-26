@@ -1,6 +1,8 @@
 import { translate, type TranslationMessage } from '../../i18n/index.js'
 import { resizeUploadImage } from '../../utils/resizeUploadImage.js'
 import { readMessageEvent } from './parseEvent.js'
+import { translateOpenAIStream, type OpenAIChunk } from './openaiCompat.js'
+import { toOpenAIRequest } from './openaiRequest.js'
 import { readServerSentEvents } from './sse.js'
 import type {
   ApiErrorBody,
@@ -181,6 +183,51 @@ const hasFile = (body: CreateMessageRequest) =>
   )
 
 /**
+ * OpenAI 兼容端点（百炼等）的流式对话。
+ *
+ * OpenAI 的 SSE 用 `data: {...}` 且以 `data: [DONE]` 收尾，事件名固定为 message；
+ * 这里把它翻译成本项目的事件序列，上层代码不需要知道底下是哪家协议。
+ */
+async function* streamOpenAI(
+  apiKey: string,
+  body: CreateMessageRequest,
+  signal: AbortSignal,
+  baseUrl: string
+): AsyncGenerator<MessageStreamEvent> {
+  const payload = toOpenAIRequest(body, body.model)
+  const response = await request(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+    signal,
+  })
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (!response.body || !contentType.includes('text/event-stream')) {
+    throw await readErrorResponse(response, 'protocol', '')
+  }
+
+  const chunks = (async function* () {
+    for await (const { data } of readServerSentEvents(response.body as ReadableStream, signal)) {
+      // OpenAI 用哨兵值表示结束，不是事件类型
+      if (data.trim() === '[DONE]') {
+        return
+      }
+      try {
+        yield JSON.parse(data) as OpenAIChunk
+      } catch {
+        // 无法解析的块跳过，不因为一个脏块让整段对话失败
+      }
+    }
+  })()
+
+  yield* translateOpenAIStream(chunks, body.model)
+}
+
+/**
  * POST /anthropic/v1/messages（stream: true），逐个产出流式事件，收到 message_stop 时结束。
  * ping、保活注释与无法解析的内容不产出；中止请求时抛出 signal 的 AbortError。
  */
@@ -189,8 +236,14 @@ export async function* streamMessage(
   body: CreateMessageRequest,
   signal: AbortSignal,
   /** Messages 接口前缀；不传就用构建期默认的 DeepSeek 官方 */
-  baseUrl: string = ANTHROPIC_BASE_URL
+  baseUrl: string = ANTHROPIC_BASE_URL,
+  /** openai 时走 chat/completions，并把流翻译成同一套事件 */
+  protocol: 'anthropic' | 'openai' = 'anthropic'
 ): AsyncGenerator<MessageStreamEvent> {
+  if (protocol === 'openai') {
+    yield* streamOpenAI(apiKey, body, signal, baseUrl)
+    return
+  }
   const response = await request(`${baseUrl}/messages`, {
     method: 'POST',
     headers: {

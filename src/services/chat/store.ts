@@ -1068,7 +1068,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
           },
           controller.signal,
-          getProvider(useSettings.getState().provider).baseUrl
+          getProvider(useSettings.getState().provider).baseUrl,
+          getProvider(useSettings.getState().provider).protocol
         )
         const blockIndexes = new Map<number, number>()
         for await (const event of events) {

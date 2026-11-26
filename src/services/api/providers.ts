@@ -28,6 +28,13 @@ export type Provider = {
     /** 该服务商没有校验接口时，用一个最小请求验，会产生极少量费用 */
     | { kind: 'probe'; model: string }
   /**
+   * 协议：Anthropic Messages 兼容层，还是 OpenAI chat/completions 兼容层。
+   *
+   * 百炼两条都提供，但只有 OpenAI 那条允许浏览器跨域 ——
+   * /apps/anthropic 的预检 OPTIONS 一律 403 且无 Access-Control-Allow-Origin。
+   */
+  protocol: 'anthropic' | 'openai'
+  /**
    * 附件上传方式。
    *
    * - 'anthropic-files'：走 Anthropic 的 Files API（/files 上传拿 file_id）
@@ -44,6 +51,7 @@ export type Provider = {
 }
 
 const DEEPSEEK: Provider = {
+  protocol: 'anthropic',
   id: 'deepseek',
   label: 'DeepSeek 官方',
   baseUrl: 'https://api.deepseek.com/anthropic/v1',
@@ -55,15 +63,19 @@ const DEEPSEEK: Provider = {
 }
 
 const BAILIAN: Provider = {
+  protocol: 'openai',
   id: 'bailian',
   label: '阿里云百炼',
-  baseUrl: 'https://dashscope.aliyuncs.com/apps/anthropic/v1',
+  // Anthropic 兼容层（/apps/anthropic）浏览器连不上：预检 OPTIONS 403、无 CORS 头。
+  // OpenAI 兼容层实测 access-control-allow-origin: *，所以百炼走这条。
+  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   // 百炼直供的 DeepSeek，走券支付；-1017 是具体版本号
   models: ['deepseek-v4-flash-1017'],
   // 百炼的 /apps/anthropic 下没有 /models（实测 404），只能发一个最小请求来验
-  verify: { kind: 'probe', model: 'deepseek-v4-flash-1017' },
-  // 百炼的 Anthropic 兼容层下没有 /files（实测 404），所以走 base64 内联。
-  // 图片直接塞进消息体，不走 Files API；历史轮次的图片不重发，只内联本轮。
+  // /compatible-mode/v1/models 有 CORS，可以用它免费验 Key
+  verify: { kind: 'models', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/models', header: 'bearer' },
+  // OpenAI 兼容层没有 Files API，图片走 base64 内联（OpenAI 的 image_url + data URL）。
+  // 只内联本轮；历史轮次的图片不重发。
   fileUpload: 'inline',
   balanceUrl: null,
   verified: false,
