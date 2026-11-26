@@ -164,11 +164,20 @@ export const deleteFile = async (apiKey: string, fileId: string): Promise<void> 
   })
 }
 
+/**
+ * 是否引用了 Files API 上传的文件。
+ *
+ * 只认 source.type === 'file'：内联的 base64 图片不是 Files API 的产物，
+ * 带上 anthropic-beta 头反而可能被服务商拒掉。
+ */
 const hasFile = (body: CreateMessageRequest) =>
   body.messages.some(
     (message) =>
       typeof message.content !== 'string' &&
-      message.content.some((block) => block.type === 'image' || block.type === 'document')
+      message.content.some(
+        (block) =>
+          (block.type === 'image' || block.type === 'document') && block.source.type === 'file'
+      )
   )
 
 /**

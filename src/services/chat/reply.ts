@@ -16,20 +16,34 @@ import type {
 } from './types.js'
 
 /**
- * 文件按 Files API 的 file_id（附件的 serverId）引用：图片用 image 块，其余用 document 块。
- * 发送前 streamReply 会先补齐 serverId；仍为 null 的是本地没有原件的附件，不进入请求。
+ * 附件转成消息块。
+ *
+ * 两种模式：
+ * - 默认按 Files API 的 file_id 引用（附件的 serverId），图片用 image、其余用 document；
+ * - `inline` 里带了 base64 时改用内联（没有 Files API 的服务商走这条）。
+ *
+ * 仍为 null 的 serverId 是本地没有原件的附件，不进入请求。
  */
-const toFileBlocks = (files: FileAttachment[]): FileBlockParam[] =>
-  files.flatMap(({ serverId, isImage }) =>
-    serverId
-      ? [
-          {
-            type: isImage ? 'image' : 'document',
-            source: { type: 'file', file_id: serverId },
-          },
-        ]
-      : []
-  )
+const toFileBlocks = (
+  files: FileAttachment[],
+  inline?: ReadonlyMap<string, { mediaType: string; data: string }>
+): FileBlockParam[] =>
+  files.flatMap(({ id, serverId, isImage }): FileBlockParam[] => {
+    // 内联优先：只有确实编码成功的那几张才走这条
+    const data = inline?.get(id)
+    if (data) {
+      return [{ type: 'image', source: { type: 'base64', media_type: data.mediaType, data: data.data } }]
+    }
+    if (!serverId) {
+      return []
+    }
+    return [
+      {
+        type: isImage ? 'image' : 'document',
+        source: { type: 'file', file_id: serverId },
+      },
+    ]
+  })
 
 const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null => {
   switch (block.type) {
@@ -201,9 +215,12 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   !message.blocks.some((block) => block.type === 'text' && block.isTemplate) &&
   getReplyText(message) !== ''
 
-/** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
-const toUserParam = ({ content, files }: UserMessage): MessageParam => {
-  const blocks = toFileBlocks(files)
+/** 有文件时用内容块数组：先文件后文本 */
+const toUserParam = (
+  { content, files }: UserMessage,
+  inline?: ReadonlyMap<string, { mediaType: string; data: string }>
+): MessageParam => {
+  const blocks = toFileBlocks(files, inline)
   return blocks.length === 0
     ? { role: 'user', content }
     : {
@@ -305,7 +322,9 @@ export const toRequestMessages = (
   question: UserMessage,
   prefix?: AssistantMessage,
   thinking = prefix?.thinking ?? false,
-  latestReminder?: string
+  latestReminder?: string,
+  /** 本轮提问内联的图片（没有 Files API 的服务商用）；不影响历史轮次 */
+  inlineImages?: ReadonlyMap<string, { mediaType: string; data: string }>
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -325,7 +344,7 @@ export const toRequestMessages = (
     messages.push(toUserParam(user), toAssistantParam(reply))
   }
   appendReminder(latestReminder)
-  messages.push(toUserParam(question))
+  messages.push(toUserParam(question, inlineImages))
   if (prefix?.prefix) {
     const assistant = toAssistantParam(prefix, true, thinking)
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。

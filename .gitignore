@@ -12,3 +12,5 @@ tmp/
 verify/dist/
 verify/shots/
 verify/ui-downloaded.pptx
+verify/dist-inline/
+verify/dist-msg/

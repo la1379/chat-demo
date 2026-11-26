@@ -210,5 +210,6 @@ export const zh = {
   providerSwitchHint: '两家各存一份 Key，切换后自动用回这家填过的那个。',
   providerUnverified: '这家的接入尚未端到端验证，遇到问题先换回 DeepSeek 官方。',
   providerUploadUnknown: '这家能不能传附件还没测出来；图片和文档先别用，纯文字对话不受影响。',
+  providerInlineUpload: '这家没有文件上传接口，图片会直接内联发送（每轮重发，比另两家费 token）；文档暂不支持。',
   providerNoBalance: '这家没有余额查询接口。',
 } as const

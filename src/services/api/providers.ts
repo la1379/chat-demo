@@ -62,11 +62,9 @@ const BAILIAN: Provider = {
   models: ['deepseek-v4-flash-1017'],
   // 百炼的 /apps/anthropic 下没有 /models（实测 404），只能发一个最小请求来验
   verify: { kind: 'probe', model: 'deepseek-v4-flash-1017' },
-  // 百炼在 Anthropic 兼容层下没有 /files（实测 404），但它的 OpenAI 兼容层
-  // 有 /compatible-mode/v1/files（实测 401 = 端点存在）。
-  // 也就是说它**能传文件**，只是不能沿用当前的 file_id 引用方式，需要改走 base64 内联。
-  // 这一版还没实现，所以标 unknown，界面据实提示。
-  fileUpload: 'unknown',
+  // 百炼的 Anthropic 兼容层下没有 /files（实测 404），所以走 base64 内联。
+  // 图片直接塞进消息体，不走 Files API；历史轮次的图片不重发，只内联本轮。
+  fileUpload: 'inline',
   balanceUrl: null,
   verified: false,
   notes: '百炼的 Anthropic 端点尚未端到端验证',

@@ -14,6 +14,7 @@ import {
 import { useSettings } from '../settings.js'
 import { requestPersistentStorage } from './persistStorage.js'
 import { getProvider, type ProviderId } from '../api/providers.js'
+import { toInlineImage } from '../api/inlineImage.js'
 import { SYSTEM_PROMPT } from './systemPrompt.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -858,14 +859,18 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
     saveServerIds(sessionId, checked)
     request = refreshRequest(sessionId, request)
   }
-  const uploads = Promise.allSettled(
-    request.question.files.map(async (file) => {
-      const serverId = await ensureServerId(apiKey, file)
-      if (serverId && serverId !== file.serverId) {
-        serverIds.set(file.id, serverId)
-      }
-    })
-  )
+  // 内联模式不碰上传接口：那家根本没有 /files，硬传只会 404
+  const inlineMode = getProvider(useSettings.getState().provider).fileUpload === 'inline'
+  const uploads = inlineMode
+    ? Promise.allSettled([] as Promise<void>[])
+    : Promise.allSettled(
+        request.question.files.map(async (file) => {
+          const serverId = await ensureServerId(apiKey, file)
+          if (serverId && serverId !== file.serverId) {
+            serverIds.set(file.id, serverId)
+          }
+        })
+      )
   void uploads.then(() => {
     if (epoch === historyEpoch) {
       saveServerIds(sessionId, serverIds)
@@ -885,7 +890,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
       }
     }
   }
-  for (const file of pending.values()) {
+  for (const file of inlineMode ? [] : pending.values()) {
     throwIfAborted(signal)
     try {
       const serverId = await Promise.race([ensureServerId(apiKey, file), aborted])
@@ -898,6 +903,25 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
     }
   }
 
+  // 没有 Files API 的服务商：把本轮提问的图片编码成 base64 内联。
+  // 只做本轮 —— 历史轮次的图如果也内联，每轮都要重发一遍，token 会失控。
+  const inlineImages = new Map<string, { mediaType: string; data: string }>()
+  if (getProvider(useSettings.getState().provider).fileUpload === 'inline') {
+    for (const file of request.question.files) {
+      if (!file.isImage) {
+        continue
+      }
+      const blob = await db.loadFile(file.id)
+      if (!blob) {
+        continue
+      }
+      const encoded = await toInlineImage(blob, file.mimeType)
+      if (encoded) {
+        inlineImages.set(file.id, encoded)
+      }
+    }
+  }
+
   // 用补齐后的会话重新取历史与提问，保证请求里都是 serverId
   const session = getSession(sessionId)
   const resolve = <T extends Message>(message: T): T =>
@@ -906,6 +930,7 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
     history: request.history.map(resolve),
     question: resolve(request.question),
     prefix: request.prefix,
+    inlineImages,
   }
 }
 
@@ -1028,7 +1053,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           prepared.question,
           prepared.prefix,
           initial.thinking ?? false,
-          latestReminder
+          latestReminder,
+          prepared.inlineImages
         )
         const events = streamMessage(
           useSettings.getState().apiKey ?? '',

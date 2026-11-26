@@ -219,5 +219,6 @@ export const en = {
   providerSwitchHint: 'Each provider keeps its own key; switching reuses the one you saved for it.',
   providerUnverified: 'This provider is not verified end to end yet; fall back to DeepSeek if it fails.',
   providerUploadUnknown: 'Attachment support for this provider is untested; stick to text for now.',
+  providerInlineUpload: 'No file API here — images are sent inline (re-sent every turn, costs more tokens); documents unsupported.',
   providerNoBalance: 'This provider has no balance endpoint.',
 } satisfies Record<keyof typeof zh, string>
