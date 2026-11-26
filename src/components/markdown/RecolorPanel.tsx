@@ -13,6 +13,7 @@ import {
 import type { ColorInfo, ColorMapping, ThemeSlot } from '../../services/pptx/recolor.js'
 import { analyzeMedia, describeMediaRisk } from '../../services/pptx/media.js'
 import type { MediaColorRisk } from '../../services/pptx/media.js'
+import { recolorImages } from '../../services/pptx/imageRecolor.js'
 import { downloadBlob, toFileName } from '../../services/office/spec.js'
 import styles from './RecolorPanel.module.css'
 
@@ -70,6 +71,8 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
   const [colors, setColors] = useState<ColorInfo[]>([])
   const [theme, setTheme] = useState<ThemeSlot[]>([])
   const [media, setMedia] = useState<MediaColorRisk[]>([])
+  // 图片换色：默认开启，但让用户能关掉（照片类素材不该换色）
+  const [withImages, setWithImages] = useState(true)
   const [mapping, setMapping] = useState<ColorMapping>({})
   const [locked, setLocked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -114,7 +117,7 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
     [colors]
   )
 
-  const onDownload = () => {
+  const onDownload = async () => {
     if (!raw) {
       return
     }
@@ -124,7 +127,20 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
     }
     setBusy(true)
     try {
-      const out = applyColorMapping(raw, mapping)
+      let out = applyColorMapping(raw, mapping)
+      // 图片里的颜色是纯像素运算，不需要任何 AI 模型；
+      // 但照片类素材换色会失真，所以交给用户决定要不要一起改
+      if (withImages) {
+        const result = await recolorImages(out, mapping)
+        out = result.data
+        if (result.changed > 0) {
+          showToast(`同时调整了 ${result.changed} 张图片的配色`)
+        }
+        const complexSkipped = result.skipped.filter((item) => item.reason.includes('色彩丰富'))
+        if (complexSkipped.length > 0) {
+          showToast(`${complexSkipped.length} 张照片类图片未改动（换色会失真）`)
+        }
+      }
       const blob = new Blob([out], {
         type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       })
@@ -185,8 +201,16 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
 
       {mediaWarning ? (
         <div className={styles.warning}>
-          <strong>注意图片</strong>
+          <strong>图片</strong>
           <span>{mediaWarning}</span>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={withImages}
+              onChange={(event) => setWithImages(event.target.checked)}
+            />
+            一起调整图片配色
+          </label>
         </div>
       ) : null}
 

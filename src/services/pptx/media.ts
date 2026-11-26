@@ -61,7 +61,14 @@ export const describeMediaRisk = (media: MediaColorRisk[]): string | null => {
     return null
   }
   const totalMB = (prominent.reduce((sum, item) => sum + item.bytes, 0) / 1048576).toFixed(1)
-  return `这份 PPT 里有 ${prominent.length} 张大图（共 ${totalMB} MB），很可能是背景图或主视觉。` +
-    `图片里的颜色无法自动修改 —— 如果它们本来是主色调，改完会出现「文字和色块变了、图没变」的情况。` +
-    `建议先看一眼效果，必要时手动换掉这几张图。`
+  const pngCount = prominent.filter((item) => item.readable).length
+  const emfCount = prominent.length - pngCount
+  const parts = [`有 ${prominent.length} 张大图（共 ${totalMB} MB）`]
+  if (pngCount > 0) {
+    parts.push(`其中 ${pngCount} 张 PNG 可以一起换色`)
+  }
+  if (emfCount > 0) {
+    parts.push(`${emfCount} 张 EMF 矢量图改不了`)
+  }
+  return `${parts.join('，')}。图片换色是逐像素调色，不会改变图片内容；但照片类素材换色可能失真，可自行决定要不要勾选。`
 }

@@ -85,6 +85,23 @@
   }
 }
 
+.checkbox {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  margin-left: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  input {
+    cursor: pointer;
+  }
+}
+
 .beforeAfter {
   display: flex;
   flex-wrap: wrap;
