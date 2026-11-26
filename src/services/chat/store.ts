@@ -48,7 +48,23 @@ const MODEL: ChatModel = 'deepseek-flash'
 
 /** 当前服务商的默认模型：换到百炼时模型名必须跟着换，否则请求会被拒 */
 const modelForProvider = (providerId: ProviderId): ChatModel =>
-  (getProvider(providerId).models[0] as ChatModel | undefined) ?? MODEL
+  getProvider(providerId).models[0] ?? MODEL
+
+/**
+ * 校正模型名。
+ *
+ * 会话里记的模型名属于「生成那一刻的服务商」。切到别家后继续对话时，
+ * 这个名字在新服务商下多半不存在，发出去会得到
+ * 「model does not exist or you do not have access to it」——
+ * 一个看不出根因的错。所以对不上就换成当前服务商的默认模型。
+ */
+const resolveModel = (recorded: string | null | undefined, providerId: ProviderId): ChatModel => {
+  const provider = getProvider(providerId)
+  if (recorded && provider.models.includes(recorded)) {
+    return recorded
+  }
+  return provider.models[0] ?? MODEL
+}
 /** 所有生成请求统一携带的助手身份说明与制表 / 制演示文稿的产出约定 */
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
@@ -267,14 +283,19 @@ export const bindChatPersistence = () => {
   }
 }
 
-/** 按当前开关创建回复：深度思考对应 thinking，智能搜索控制 deepseek_web_search。 */
+/**
+ * 按当前开关创建回复：深度思考对应 thinking，智能搜索控制 deepseek_web_search。
+ *
+ * 模型必须在这里就按服务商取好 —— 发送时用的是 initial.model，
+ * 若这里写死官方模型名，换到百炼就会发出它不认的 deepseek-flash。
+ */
 const createReply = (): AssistantMessage => {
-  const { thinking, search } = useSettings.getState()
+  const { thinking, search, provider } = useSettings.getState()
   return {
     id: createId(),
     role: 'assistant',
     createdAt: Date.now(),
-    model: MODEL,
+    model: modelForProvider(provider),
     thinking,
     search,
     prefix: true,
@@ -727,8 +748,8 @@ export const continueReply = (sessionId: string, messageId: string) => {
   const { thinking, search } = useSettings.getState()
   const reply: AssistantMessage = {
     ...previous,
-    // 未记录请求配置的回复，续写时使用默认模型和当前开关。
-    model: previous.model ?? MODEL,
+    // 未记录请求配置的回复，续写时用当前服务商的默认模型和当前开关。
+    model: previous.model ?? modelForProvider(useSettings.getState().provider),
     thinking: previous.thinking ?? thinking,
     search: previous.search ?? search,
     status: 'pending',
@@ -1059,7 +1080,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         const events = streamMessage(
           useSettings.getState().apiKey ?? '',
           {
-            model: initial.model ?? modelForProvider(useSettings.getState().provider),
+            model: resolveModel(initial.model, useSettings.getState().provider),
             system: SYSTEM_PROMPT,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
