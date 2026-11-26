@@ -221,4 +221,10 @@ export const en = {
   providerUploadUnknown: 'Attachment support for this provider is untested; stick to text for now.',
   providerInlineUpload: 'No file API here — images are sent inline (re-sent every turn, costs more tokens); documents unsupported.',
   providerNoBalance: 'This provider has no balance endpoint.',
+  modelLabel: 'Model',
+  modelHint: 'Leave blank to use the default. If the name is rejected, use “List available” to read the real names from your account.',
+  modelList: 'List available',
+  modelListing: 'Reading…',
+  modelListEmpty: 'The account returned no models',
+  modelNeedKey: 'Enter an API key first',
 } satisfies Record<keyof typeof zh, string>

@@ -13,6 +13,12 @@ type Settings = {
   apiKey: string | null
   /** 当前服务商；换服务商需要重填对应 Key */
   provider: ProviderId
+  /**
+   * 手填的模型名，按服务商分开存。
+   * DashScope 的模型名常有版本差异，内置清单不一定命中账号的实际可用名，
+   * 留一个手动覆盖的口子，免得每次都要改代码重编译。
+   */
+  modelOverride: Record<ProviderId, string>
   locale: Locale
   themePreference: ThemePreference
   location: UserLocation | null
@@ -27,6 +33,8 @@ const KEYS = {
   apiKeyLegacy: 'chat-demo:api-key',
   /** 按服务商分开存：prefix + providerId */
   apiKeyPrefix: 'chat-demo:api-key:',
+  /** 手填模型名：prefix + providerId */
+  modelPrefix: 'chat-demo:model:',
   provider: 'chat-demo:provider',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
@@ -61,6 +69,10 @@ const write = (key: string, value: string | null) => {
 const apiKeyOf = (provider: ProviderId): string => `${KEYS.apiKeyPrefix}${provider}`
 
 const readApiKey = (provider: ProviderId): string | null => read(apiKeyOf(provider))
+
+/** 读该服务商手填的模型名；没填过返回空串 */
+export const readModelOverride = (provider: ProviderId): string =>
+  read(`${KEYS.modelPrefix}${provider}`) ?? ''
 
 /**
  * 迁移旧版的单一 Key。
@@ -126,6 +138,10 @@ const providerAtBoot = initialProvider()
 export const useSettings = create<Settings>(() => ({
   apiKey: readApiKey(providerAtBoot) ?? migrateLegacyApiKey(providerAtBoot),
   provider: providerAtBoot,
+  modelOverride: {
+    deepseek: readModelOverride('deepseek'),
+    bailian: readModelOverride('bailian'),
+  },
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -173,6 +189,15 @@ export const setProvider = (provider: ProviderId) => {
   }
   write(KEYS.provider, provider)
   useSettings.setState({ provider, apiKey: readApiKey(provider) })
+}
+
+/** 保存手填的模型名；空串表示恢复用内置清单 */
+export const setModelOverride = (provider: ProviderId, model: string) => {
+  const trimmed = model.trim()
+  write(`${KEYS.modelPrefix}${provider}`, trimmed || null)
+  useSettings.setState((state) => ({
+    modelOverride: { ...state.modelOverride, [provider]: trimmed },
+  }))
 }
 
 export const setThinking = (thinking: boolean) => {

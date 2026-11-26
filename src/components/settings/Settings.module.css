@@ -559,3 +559,38 @@
   font-size: 12px;
   line-height: 18px;
 }
+
+/* 模型名候选：点一下就换上 */
+.modelList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.modelItem,
+.modelItemOn {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--ds-font-family-code);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--dsw-alias-label-primary);
+      background: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+}
+
+.modelItemOn {
+  border-color: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}

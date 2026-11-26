@@ -69,8 +69,11 @@ const BAILIAN: Provider = {
   // Anthropic 兼容层（/apps/anthropic）浏览器连不上：预检 OPTIONS 403、无 CORS 头。
   // OpenAI 兼容层实测 access-control-allow-origin: *，所以百炼走这条。
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  // 百炼直供的 DeepSeek，走券支付；-1017 是具体版本号
-  models: ['deepseek-v4-flash-1017'],
+  // 百炼直供的 DeepSeek，走券支付。
+  // 注意：DashScope 只认裸名，带版本后缀的名字会被拒
+  // （实测 [1m] 后缀报 model does not exist，-1017 同样报）。
+  // 实际可用列表以账号为准，界面允许手动覆盖。
+  models: ['deepseek-v4.1-flash', 'deepseek-v4-flash', 'deepseek-v4-pro'],
   // 百炼的 /apps/anthropic 下没有 /models（实测 404），只能发一个最小请求来验
   // /compatible-mode/v1/models 有 CORS，可以用它免费验 Key
   verify: { kind: 'models', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/models', header: 'bearer' },

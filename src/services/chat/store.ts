@@ -46,9 +46,19 @@ import {
 /** deepseek-flash 同时支持深度思考与图片输入 */
 const MODEL: ChatModel = 'deepseek-flash'
 
-/** 当前服务商的默认模型：换到百炼时模型名必须跟着换，否则请求会被拒 */
-const modelForProvider = (providerId: ProviderId): ChatModel =>
-  getProvider(providerId).models[0] ?? MODEL
+/**
+ * 当前服务商的默认模型。
+ *
+ * 优先用手填值：DashScope 的模型名常带版本差异，内置清单不一定命中
+ * 账号的实际可用名（实测 -1017 这种后缀会被拒）。
+ */
+const modelForProvider = (providerId: ProviderId): ChatModel => {
+  const override = useSettings.getState().modelOverride?.[providerId]
+  if (override) {
+    return override
+  }
+  return getProvider(providerId).models[0] ?? MODEL
+}
 
 /**
  * 校正模型名。
@@ -59,6 +69,11 @@ const modelForProvider = (providerId: ProviderId): ChatModel =>
  * 一个看不出根因的错。所以对不上就换成当前服务商的默认模型。
  */
 const resolveModel = (recorded: string | null | undefined, providerId: ProviderId): ChatModel => {
+  const override = useSettings.getState().modelOverride?.[providerId]
+  // 手填了就以手填为准，不再做清单校验 —— 清单可能本来就不全
+  if (override) {
+    return override
+  }
   const provider = getProvider(providerId)
   if (recorded && provider.models.includes(recorded)) {
     return recorded

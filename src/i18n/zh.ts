@@ -212,4 +212,10 @@ export const zh = {
   providerUploadUnknown: '这家能不能传附件还没测出来；图片和文档先别用，纯文字对话不受影响。',
   providerInlineUpload: '这家没有文件上传接口，图片会直接内联发送（每轮重发，比另两家费 token）；文档暂不支持。',
   providerNoBalance: '这家没有余额查询接口。',
+  modelLabel: '模型',
+  modelHint: '留空就用默认值。名字不对时点「列出可用」从账号里读实际可用的模型名。',
+  modelList: '列出可用',
+  modelListing: '读取中…',
+  modelListEmpty: '账号下没有返回任何模型',
+  modelNeedKey: '先填 API Key 才能列模型',
 } as const
