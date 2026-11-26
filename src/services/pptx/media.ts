@@ -65,10 +65,10 @@ export const describeMediaRisk = (media: MediaColorRisk[]): string | null => {
   const emfCount = prominent.length - pngCount
   const parts = [`有 ${prominent.length} 张大图（共 ${totalMB} MB）`]
   if (pngCount > 0) {
-    parts.push(`其中 ${pngCount} 张 PNG 可以一起换色`)
+    parts.push(`其中 ${pngCount} 张 PNG 会逐张判断`)
   }
   if (emfCount > 0) {
     parts.push(`${emfCount} 张 EMF 矢量图改不了`)
   }
-  return `${parts.join('，')}。图片换色是逐像素调色，不会改变图片内容；但照片类素材换色可能失真，可自行决定要不要勾选。`
+  return `${parts.join('，')}。只有单色图片会被换色；品牌 logo、截图、照片这类多色素材一律保持原样，避免内容被染上别的颜色。`
 }

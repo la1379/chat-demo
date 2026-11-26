@@ -76,6 +76,25 @@ type PixelShift = {
 }
 
 /**
+ * 像素的 HSV 饱和度。
+ *
+ * **不要用 HSL 的 S 做这个判断。** HSL 的 S 是 (max-min)/(2-max-min)，
+ * 当 (max+min)/2 接近 1 时分母趋近 0，S 反而趋近 1 ——
+ * 实测近白像素 F9FBFF 的 HSL S = 1.000，而它的 HSV S 只有 0.0235。
+ * 拿 HSL S 配 minSaturation 当「跳过白底」的闸门，闸门在浅色区完全失效，
+ * 一整张白底截图会被当成高饱和图整体染色（实测 48% 像素被改）。
+ * HSV 的 S = (max-min)/max 在近白区自然趋近 0，才符合「这几乎没颜色」。
+ */
+const hsvSaturation = (r: number, g: number, b: number): number => {
+  const max = Math.max(r, g, b) / 255
+  if (max === 0) {
+    return 0
+  }
+  const min = Math.min(r, g, b) / 255
+  return (max - min) / max
+}
+
+/**
  * 逐像素改色相。
  *
  * 只改色相，保留每个像素自己的饱和度与明度层次 ——
@@ -108,7 +127,8 @@ const shiftBitmap = (bitmap: Bitmap, shift: PixelShift): number => {
     if (delta === 0) {
       continue
     }
-    const sat = light > 0.5 ? delta / (2 - max - min) : delta / (max + min)
+    // 用 HSV 的 S 判断「是不是真的算有颜色」，理由见 hsvSaturation 的注释
+    const sat = max === 0 ? 0 : delta / max
     if (sat < shift.minSaturation) {
       continue
     }
@@ -183,7 +203,7 @@ const hue2rgb = (p: number, q: number, t: number): number => {
 export type ImageKind =
   /** 单色或近单色（图标、logo、纯色底）—— 换色安全 */
   | 'flat'
-  /** 色彩丰富（照片、复杂插图）—— 整体调色会毁掉它 */
+  /** 色彩丰富（照片、复杂插图、多色 logo、截图）—— 整体调色会毁掉它 */
   | 'complex'
   /** 介于两者之间 */
   | 'mixed'
@@ -197,6 +217,8 @@ export type ImageProfile = {
   vividRatio: number
   /** 有彩色像素里，主色相所占比例；越高说明越接近单色 */
   hueConcentration: number
+  /** 占比重够大的色相区间数（每 60 度一桶，阈值 8%）；1 才说明是单色图 */
+  significantHues: number
   kind: ImageKind
 }
 
@@ -205,17 +227,32 @@ export type ImageProfile = {
  *
  * 这是整个图片换色功能的分岔口：
  * 单色图标换色很安全，照片换色就是毁图。
- * 用两个廉价指标就够区分 —— 有彩色像素占比、主色相集中度。
+ *
+ * **判据只看一件事：这张图是不是只有一种颜色。**
+ * 色相桶数 ≤1 才允许换 —— 多色图（品牌 logo、截图、照片）一律不动，
+ * 因为色相平移是「所有颜色一起转」，会把 logo 里的红转成青绿、
+ * 把截图里的白色底染上色（这两条都在真实文件上实测到过）。
  */
-const classify = (vividRatio: number, hueConcentration: number): ImageKind => {
-  if (vividRatio >= 0.6 && hueConcentration < 0.6) {
-    return 'complex'
-  }
-  if (vividRatio <= 0.3 || hueConcentration >= 0.8) {
+const classify = (vividRatio: number, hueConcentration: number, significantHues: number): ImageKind => {
+  // 单色图：颜色足够鲜艳、几乎全压在同一个色相桶里
+  if (significantHues <= 1 && hueConcentration >= 0.7 && vividRatio >= 0.2) {
     return 'flat'
+  }
+  // 有多个显著色相，或颜色太杂 —— 换色必毁
+  if (significantHues >= 2 || (vividRatio >= 0.6 && hueConcentration < 0.6)) {
+    return 'complex'
   }
   return 'mixed'
 }
+
+/** 一个色相桶算「显著」的门槛：占全部有彩色像素的比例 */
+const SIGNIFICANT_HUE_SHARE = 0.08
+/** 色相桶宽度（度）。60 度一桶，把橙和红分开、不与邻近色混桶 */
+const HUE_BUCKET_DEGREES = 60
+/** 低于这个 HSV 饱和度的像素不算「有颜色」 */
+const VIVID_SATURATION = 0.15
+/** 太暗的像素不参与分类：深色文字/阴影在任何色相下都像是「有色」的 */
+const VIVID_MIN_VALUE = 0.1
 
 /** 分析一张位图的色彩复杂度（抽样，不遍历全部像素） */
 const profileBitmap = async (path: string, bytes: Uint8Array<ArrayBuffer>): Promise<ImageProfile> => {
@@ -234,38 +271,42 @@ const profileBitmap = async (path: string, bytes: Uint8Array<ArrayBuffer>): Prom
     if (pixels[i + 3] < 16) {
       continue
     }
-    const r = pixels[i] / 255
-    const g = pixels[i + 1] / 255
-    const b = pixels[i + 2] / 255
-    const max = Math.max(r, g, b)
-    const min = Math.min(r, g, b)
-    const light = (max + min) / 2
-    const delta = max - min
+    const r = pixels[i]
+    const g = pixels[i + 1]
+    const b = pixels[i + 2]
+    const max = Math.max(r, g, b) / 255
     sampled += 1
-    if (delta === 0) {
+    if (max < VIVID_MIN_VALUE) {
       continue
     }
-    const sat = light > 0.5 ? delta / (2 - max - min) : delta / (max + min)
-    if (sat < 0.15) {
+    // HSV 的 S；用 HSL 的 S 会让近白像素全被判成高饱和（见 hsvSaturation 注释）
+    if (hsvSaturation(r, g, b) < VIVID_SATURATION) {
       continue
     }
     vivid += 1
+    const rn = r / 255
+    const gn = g / 255
+    const bn = b / 255
+    const delta = max - Math.min(rn, gn, bn)
     let hue: number
-    if (max === r) {
-      hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6
-    } else if (max === g) {
-      hue = ((b - r) / delta + 2) / 6
+    if (max === rn) {
+      hue = ((gn - bn) / delta + (gn < bn ? 6 : 0)) / 6
+    } else if (max === gn) {
+      hue = ((bn - rn) / delta + 2) / 6
     } else {
-      hue = ((r - g) / delta + 4) / 6
+      hue = ((rn - gn) / delta + 4) / 6
     }
-    // 每 30 度一档
-    const bucket = Math.floor((hue * 360) / 30)
+    const bucket = Math.floor((hue * 360) / HUE_BUCKET_DEGREES)
     hueBuckets.set(bucket, (hueBuckets.get(bucket) ?? 0) + 1)
   }
 
   const vividRatio = sampled > 0 ? vivid / sampled : 0
-  const topHue = Math.max(0, ...hueBuckets.values())
+  const topHue = vivid > 0 ? Math.max(0, ...hueBuckets.values()) : 0
   const hueConcentration = vivid > 0 ? topHue / vivid : 0
+  const significantHues =
+    vivid > 0
+      ? Array.from(hueBuckets.values()).filter((count) => count >= vivid * SIGNIFICANT_HUE_SHARE).length
+      : 0
 
   return {
     path,
@@ -274,7 +315,8 @@ const profileBitmap = async (path: string, bytes: Uint8Array<ArrayBuffer>): Prom
     height,
     vividRatio,
     hueConcentration,
-    kind: classify(vividRatio, hueConcentration),
+    significantHues,
+    kind: classify(vividRatio, hueConcentration, significantHues),
   }
 }
 
@@ -376,9 +418,18 @@ export const recolorImages = async (
       continue
     }
 
-    // 照片/复杂插图默认不动：整体换色相会毁掉它的内容色调
-    if (profile.kind === 'complex' && !options.includeComplex) {
-      skipped.push({ path: name, reason: '色彩丰富的照片或插图，换色会失真' })
+    // 只有单色图才换。
+    // complex（照片/多色 logo/截图）和 mixed（说不清）都跳过 ——
+    // 色相平移是「所有颜色一起转」，改多色图必然毁内容：
+    // 实测一张两色品牌 logo 的红被转成青绿，一张白底截图 48% 像素被染色。
+    if (profile.kind !== 'flat' && !options.includeComplex) {
+      skipped.push({
+        path: name,
+        reason:
+          profile.kind === 'complex'
+            ? `多色图（${profile.significantHues} 个主要色相），换色会改掉内容颜色`
+            : '颜色不够单一，换色效果不可控',
+      })
       continue
     }
 

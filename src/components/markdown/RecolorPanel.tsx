@@ -145,16 +145,15 @@ export const RecolorPanel = memo(function RecolorPanel({
     try {
       let out = applyColorMapping(raw, mapping)
       // 图片里的颜色是纯像素运算，不需要任何 AI 模型；
-      // 但照片类素材换色会失真，所以交给用户决定要不要一起改
+      // 但只有单色图适合换 —— 多色 logo / 截图 / 照片换色会毁掉内容
       if (withImages) {
         const result = await recolorImages(out, mapping)
         out = result.data
         if (result.changed > 0) {
-          showToast(`同时调整了 ${result.changed} 张图片的配色`)
+          showToast(`同时调整了 ${result.changed} 张单色图片的配色`)
         }
-        const complexSkipped = result.skipped.filter((item) => item.reason.includes('色彩丰富'))
-        if (complexSkipped.length > 0) {
-          showToast(`${complexSkipped.length} 张照片类图片未改动（换色会失真）`)
+        if (result.skipped.length > 0) {
+          showToast(`${result.skipped.length} 张图片保持原样（多色或照片，换色会失真）`)
         }
       }
       const blob = new Blob([out], {

@@ -302,6 +302,18 @@ export const applyColorMapping = (
     const text = new TextDecoder('utf-8', { fatal: false }).decode(content)
     let next = text
 
+    // 超链接色不参与改色。
+    // hlink / folHlink 是「链接」的语义槽，跟品牌色无关：
+    // 实测一份橙色主题的 hlink 是 467886（灰蓝，色相 193°），
+    // 被整体平移 215° 后变成 865F46（土褐，色相 20°），
+    // 于是「橙色清零」的检查永远差最后两条。
+    // 按语义块保护而不是按色值排除 —— 正文里若有同色值该改还得改。
+    const protectedBlocks: string[] = []
+    next = next.replace(/<a:(?:hlink|folHlink)>[\s\S]*?<\/a:(?:hlink|folHLink)>/gi, (all) => {
+      protectedBlocks.push(all)
+      return `\u0000PROTECTED${protectedBlocks.length - 1}\u0000`
+    })
+
     srgbRe.lastIndex = 0
     if (srgbRe.test(next)) {
       srgbRe.lastIndex = 0
@@ -328,6 +340,11 @@ export const applyColorMapping = (
       // 预设色没有 RGB 属性，只能换掉整个标签
       const presetRe = new RegExp(`<a:prstClr\\b[^>]*\\bval="${presetName}"[^>]*/>`, 'gi')
       next = next.replace(presetRe, `<a:srgbClr val="${mapped}"/>`)
+    }
+
+    // 把超链接块原样放回去
+    if (protectedBlocks.length > 0) {
+      next = next.replace(/\u0000PROTECTED(\d+)\u0000/g, (_all, index: string) => protectedBlocks[Number(index)])
     }
 
     // 只有真的变了才写回，避免无谓的内存拷贝

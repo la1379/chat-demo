@@ -16,3 +16,6 @@ verify/dist-inline/
 verify/dist-msg/
 verify/dist-openai/
 verify/dist-model/
+verify/pp-report.json
+verify/pp-run.log
+verify/pp-ui.log
