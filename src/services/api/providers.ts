@@ -27,8 +27,14 @@ export type Provider = {
     | { kind: 'models'; url: string; header: 'bearer' | 'x-api-key' }
     /** 该服务商没有校验接口时，用一个最小请求验，会产生极少量费用 */
     | { kind: 'probe'; model: string }
-  /** 是否支持 Anthropic Files API（图片 / 文档上传） */
-  filesApi: boolean
+  /**
+   * 附件上传方式。
+   *
+   * - 'anthropic-files'：走 Anthropic 的 Files API（/files 上传拿 file_id）
+   * - 'inline'：不走 Files API，把图片以 base64 内联进消息
+   * - 'unknown'：还没测出来，界面上别断言能用或不能用
+   */
+  fileUpload: 'anthropic-files' | 'inline' | 'unknown'
   /** 余额查询地址；没有就为 null，界面上不显示按钮 */
   balanceUrl: string | null
   /** 是否为已实测过的配置 */
@@ -43,7 +49,7 @@ const DEEPSEEK: Provider = {
   baseUrl: 'https://api.deepseek.com/anthropic/v1',
   models: ['deepseek-flash', 'deepseek-v4-pro'],
   verify: { kind: 'models', url: 'https://api.deepseek.com/models', header: 'bearer' },
-  filesApi: true,
+  fileUpload: 'anthropic-files',
   balanceUrl: 'https://api.deepseek.com/user/balance',
   verified: true,
 }
@@ -56,11 +62,14 @@ const BAILIAN: Provider = {
   models: ['deepseek-v4-flash-1017'],
   // 百炼的 /apps/anthropic 下没有 /models（实测 404），只能发一个最小请求来验
   verify: { kind: 'probe', model: 'deepseek-v4-flash-1017' },
-  // 未验证是否支持 Files API，保守关掉：图片与文档上传会不可用
-  filesApi: false,
+  // 百炼在 Anthropic 兼容层下没有 /files（实测 404），但它的 OpenAI 兼容层
+  // 有 /compatible-mode/v1/files（实测 401 = 端点存在）。
+  // 也就是说它**能传文件**，只是不能沿用当前的 file_id 引用方式，需要改走 base64 内联。
+  // 这一版还没实现，所以标 unknown，界面据实提示。
+  fileUpload: 'unknown',
   balanceUrl: null,
   verified: false,
-  notes: '百炼的 Anthropic 端点尚未端到端验证；附件上传功能不可用',
+  notes: '百炼的 Anthropic 端点尚未端到端验证',
 }
 
 export const PROVIDERS: Provider[] = [DEEPSEEK, BAILIAN]

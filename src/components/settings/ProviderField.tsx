@@ -27,7 +27,9 @@ export const ProviderField = () => {
       <div className={styles.hint}>{t('providerSwitchHint')}</div>
       {/* 未端到端验证过的服务商要明说，别让用户以为坏了是自己的问题 */}
       {provider.verified ? null : <div className={styles.hint}>{t('providerUnverified')}</div>}
-      {provider.filesApi ? null : <div className={styles.hint}>{t('providerNoFiles')}</div>}
+      {provider.fileUpload === 'unknown' ? (
+        <div className={styles.hint}>{t('providerUploadUnknown')}</div>
+      ) : null}
       {provider.balanceUrl ? null : <div className={styles.hint}>{t('providerNoBalance')}</div>}
     </div>
   )
