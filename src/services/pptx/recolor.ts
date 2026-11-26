@@ -30,6 +30,32 @@ export type ColorInfo = ColorUsage & {
 
 const XML_ENTRY = /\.(xml|rels)$/i
 const SRGB = /<a:srgbClr\b[^>]*\bval="([0-9A-Fa-f]{6})"/g
+/** 系统色，形如 <a:sysClr val="window" lastClr="FFFFFF"/>；lastClr 才是实际颜色 */
+const SYSCLR = /<a:sysClr\b[^>]*\blastClr="([0-9A-Fa-f]{6})"/g
+/** 预设色，形如 <a:prstClr val="orange"/> */
+const PRSTCLR = /<a:prstClr\b[^>]*\bval="(\w+)"/g
+
+/** 常见预设色的 RGB，用于把 prstClr 也纳入统计与替换 */
+const PRESET_RGB: Record<string, string> = {
+  black: '000000',
+  white: 'FFFFFF',
+  red: 'FF0000',
+  green: '008000',
+  blue: '0000FF',
+  yellow: 'FFFF00',
+  gray: '808080',
+  grey: '808080',
+  orange: 'FFA500',
+  purple: '800080',
+  silver: 'C0C0C0',
+  maroon: '800000',
+  navy: '000080',
+  teal: '008080',
+  lime: '00FF00',
+  aqua: '00FFFF',
+  fuchsia: 'FF00FF',
+  olive: '808000',
+}
 
 /** 两个色相之间的最短角距（0-180） */
 const hueDistance = (a: number, b: number): number => {
@@ -102,25 +128,44 @@ export const roleOf = (hex: string): ColorRole => {
   return 'other'
 }
 
-/** 从 pptx 字节里统计所有直接色值 */
+/** 从 pptx 字节里统计所有色值（直接色值 + 系统色 + 预设色） */
 export const analyzeColors = (data: Uint8Array): ColorInfo[] => {
   const files = unzipSync(data)
   const counter = new Map<string, { count: number; files: Set<string> }>()
+
+  const bump = (hex: string, name: string) => {
+    const entry = counter.get(hex) ?? { count: 0, files: new Set<string>() }
+    entry.count += 1
+    entry.files.add(name)
+    counter.set(hex, entry)
+  }
 
   for (const [name, content] of Object.entries(files)) {
     if (!XML_ENTRY.test(name)) {
       continue
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(content)
-    // 每次匹配都要重置 lastIndex，正则带 g 时复用会漏
+
+    // 直接色值；每次匹配都要重置 lastIndex，正则带 g 时复用会漏
     SRGB.lastIndex = 0
     let match: RegExpExecArray | null
     while ((match = SRGB.exec(text)) !== null) {
-      const hex = match[1].toUpperCase()
-      const entry = counter.get(hex) ?? { count: 0, files: new Set<string>() }
-      entry.count += 1
-      entry.files.add(name)
-      counter.set(hex, entry)
+      bump(match[1].toUpperCase(), name)
+    }
+
+    // 系统色取 lastClr 作为实际颜色
+    SYSCLR.lastIndex = 0
+    while ((match = SYSCLR.exec(text)) !== null) {
+      bump(match[1].toUpperCase(), name)
+    }
+
+    // 预设色换算成 RGB
+    PRSTCLR.lastIndex = 0
+    while ((match = PRSTCLR.exec(text)) !== null) {
+      const rgb = PRESET_RGB[match[1].toLowerCase()]
+      if (rgb) {
+        bump(rgb, name)
+      }
     }
   }
 
@@ -138,11 +183,92 @@ export const analyzeColors = (data: Uint8Array): ColorInfo[] => {
 /** 改色方案：原色 -> 新色 */
 export type ColorMapping = Record<string, string>
 
+/** 主题里一个语义槽位，如 accent1 / dk2 */
+export type ThemeSlot = {
+  /** 槽位名，如 accent1 */
+  slot: string
+  /** 当前颜色 */
+  hex: string
+  /** 一共被正文引用了多少次；次数越高，改它影响面越大 */
+  references: number
+}
+
+/** 主题槽位的中文名，给界面用 */
+export const THEME_SLOT_LABELS: Record<string, string> = {
+  dk1: '深色文字 1',
+  lt1: '浅色背景 1',
+  dk2: '深色文字 2',
+  lt2: '浅色背景 2',
+  accent1: '主色 1',
+  accent2: '主色 2',
+  accent3: '主色 3',
+  accent4: '主色 4',
+  accent5: '主色 5',
+  accent6: '主色 6',
+  hlink: '超链接',
+  folHlink: '已访问链接',
+}
+
+/** 从 theme 文件读出全部语义槽位，并统计每个槽位在正文里的引用次数 */
+export const analyzeTheme = (data: Uint8Array): ThemeSlot[] => {
+  const files = unzipSync(data)
+
+  // 先统计 schemeClr 在各处被引用的次数（排除 theme 自身）
+  const refs = new Map<string, number>()
+  const schemeRe = /<a:schemeClr\b[^>]*\bval="(\w+)"/g
+  for (const [name, content] of Object.entries(files)) {
+    if (!XML_ENTRY.test(name) || name.includes('/theme/')) {
+      continue
+    }
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(content)
+    schemeRe.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = schemeRe.exec(text)) !== null) {
+      refs.set(match[1], (refs.get(match[1]) ?? 0) + 1)
+    }
+  }
+
+  // 再从第一个 theme 文件读槽位定义
+  const slots: ThemeSlot[] = []
+  for (const [name, content] of Object.entries(files)) {
+    if (!name.includes('/theme/') || !name.endsWith('.xml')) {
+      continue
+    }
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(content)
+    for (const slotName of Object.keys(THEME_SLOT_LABELS)) {
+      // 槽位内部可能是 <a:srgbClr val="..."> 或 <a:sysClr lastClr="...">
+      const block = new RegExp(`<a:${slotName}>(.*?)</a:${slotName}>`, 's').exec(text)
+      if (!block) {
+        continue
+      }
+      const srgb = /<a:srgbClr\b[^>]*\bval="([0-9A-Fa-f]{6})"/.exec(block[1])
+      const sys = /<a:sysClr\b[^>]*\blastClr="([0-9A-Fa-f]{6})"/.exec(block[1])
+      const hex = (srgb?.[1] ?? sys?.[1])?.toUpperCase()
+      if (!hex) {
+        continue
+      }
+      slots.push({
+        slot: slotName,
+        hex,
+        references: refs.get(slotName) ?? 0,
+      })
+    }
+    // 一个演示文稿的配色以第一套主题为准，多余的主题不重复列
+    if (slots.length > 0) {
+      break
+    }
+  }
+  return slots
+}
+
 /**
  * 按映射替换颜色并重新打包。
  *
- * 只替换 `val="RRGGBB"` 这种精确形式，不做子串匹配 ——
+ * 同时覆盖三种写法，且都只匹配精确的完整色值，不做子串替换 ——
  * 否则 "FF00" 会误伤 "FF00FF" 这类颜色。
+ * 1. <a:srgbClr val="RRGGBB"/>        直接色值（绝大多数）
+ * 2. <a:sysClr lastClr="RRGGBB"/>     系统色
+ * 3. <a:prstClr val="orange"/>        预设色，换成 srgbClr 表达
  */
 export const applyColorMapping = (data: Uint8Array, mapping: ColorMapping): Uint8Array => {
   const files = unzipSync(data)
@@ -159,26 +285,48 @@ export const applyColorMapping = (data: Uint8Array, mapping: ColorMapping): Uint
     return data
   }
 
-  const patterns = Array.from(normalized.keys())
-  const replacer = new RegExp(
-    `<a:srgbClr\\b([^>]*?)\\bval="(${patterns.join('|')})"`,
-    'gi'
-  )
+  const patterns = Array.from(normalized.keys()).join('|')
+  const srgbRe = new RegExp(`<a:srgbClr\\b([^>]*?)\\bval="(${patterns})"`, 'gi')
+  const sysRe = new RegExp(`<a:sysClr\\b([^>]*?)\\blastClr="(${patterns})"`, 'gi')
+
+  // 预设色：先把名字映射成 RGB，若该 RGB 在改动范围内就换掉整个标签
+  const presetEntries = Object.entries(PRESET_RGB)
 
   for (const [name, content] of Object.entries(files)) {
     if (!XML_ENTRY.test(name)) {
       continue
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(content)
-    if (!replacer.test(text)) {
-      replacer.lastIndex = 0
-      continue
+    let next = text
+
+    srgbRe.lastIndex = 0
+    if (srgbRe.test(next)) {
+      srgbRe.lastIndex = 0
+      next = next.replace(srgbRe, (_all, attrs: string, hex: string) => {
+        const mapped = normalized.get(hex.toUpperCase())
+        return `<a:srgbClr${attrs}val="${mapped ?? hex}"`
+      })
     }
-    replacer.lastIndex = 0
-    const next = text.replace(replacer, (_all, attrs: string, hex: string) => {
-      const mapped = normalized.get(hex.toUpperCase())
-      return `<a:srgbClr${attrs}val="${mapped ?? hex}"`
-    })
+
+    sysRe.lastIndex = 0
+    if (sysRe.test(next)) {
+      sysRe.lastIndex = 0
+      next = next.replace(sysRe, (all, attrs: string, hex: string) => {
+        const mapped = normalized.get(hex.toUpperCase())
+        return mapped ? `<a:sysClr${attrs}lastClr="${mapped}"` : all
+      })
+    }
+
+    for (const [presetName, rgb] of presetEntries) {
+      const mapped = normalized.get(rgb)
+      if (!mapped) {
+        continue
+      }
+      // 预设色没有 RGB 属性，只能换掉整个标签
+      const presetRe = new RegExp(`<a:prstClr\\b[^>]*\\bval="${presetName}"[^>]*/>`, 'gi')
+      next = next.replace(presetRe, `<a:srgbClr val="${mapped}"/>`)
+    }
+
     // 只有真的变了才写回，避免无谓的内存拷贝
     if (next !== text) {
       files[name] = new TextEncoder().encode(next)

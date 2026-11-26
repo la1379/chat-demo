@@ -67,6 +67,102 @@
   font-size: 12px;
 }
 
+/* 改不动的图片要显式提示，不能让用户下载后才发现 */
+.warning {
+  display: flex;
+  gap: 8px;
+  margin: 10px 14px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #f5a623 12%, transparent);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 19px;
+
+  strong {
+    flex: none;
+    color: #b06f00;
+  }
+}
+
+.beforeAfter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pairArrow {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+
+/* 主题色：改一处影响很多处，所以单独成区放在最上面 */
+.themeBlock {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.themeHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 18px;
+
+  strong {
+    color: var(--dsw-alias-label-primary);
+    font-size: 13px;
+  }
+
+  span {
+    color: var(--dsw-alias-label-secondary);
+  }
+}
+
+.themeList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 2px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.themeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.slotName {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .preset {
   height: 28px;
   padding: 0 12px;

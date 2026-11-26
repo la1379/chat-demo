@@ -3,12 +3,16 @@ import { memo, useMemo, useRef, useState } from 'react'
 import { showToast } from '../base/toastState.js'
 import {
   analyzeColors,
+  analyzeTheme,
   applyColorMapping,
   buildPaletteMapping,
   PALETTE_PRESETS,
   saturationOf,
+  THEME_SLOT_LABELS,
 } from '../../services/pptx/recolor.js'
-import type { ColorInfo, ColorMapping } from '../../services/pptx/recolor.js'
+import type { ColorInfo, ColorMapping, ThemeSlot } from '../../services/pptx/recolor.js'
+import { analyzeMedia, describeMediaRisk } from '../../services/pptx/media.js'
+import type { MediaColorRisk } from '../../services/pptx/media.js'
 import { downloadBlob, toFileName } from '../../services/office/spec.js'
 import styles from './RecolorPanel.module.css'
 
@@ -64,6 +68,8 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
   const [fileName, setFileName] = useState('')
   const [raw, setRaw] = useState<Uint8Array | null>(null)
   const [colors, setColors] = useState<ColorInfo[]>([])
+  const [theme, setTheme] = useState<ThemeSlot[]>([])
+  const [media, setMedia] = useState<MediaColorRisk[]>([])
   const [mapping, setMapping] = useState<ColorMapping>({})
   const [locked, setLocked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -81,6 +87,8 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
       setRaw(data)
       setFileName(file.name)
       setColors(found)
+      setTheme(analyzeTheme(data))
+      setMedia(analyzeMedia(data))
       setMapping({})
       setLocked(new Set())
     } catch (error) {
@@ -162,6 +170,9 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
   }
 
   const changedCount = Object.keys(mapping).length
+  const mediaWarning = describeMediaRisk(media)
+  // 主题色的总引用量决定要不要显示主题区：全是 0 说明这份 PPT 没在用主题色
+  const themeReferences = theme.reduce((sum, slot) => sum + slot.references, 0)
 
   return (
     <div className={styles.panel}>
@@ -171,6 +182,66 @@ export const RecolorPanel = memo(function RecolorPanel({ loading }: { loading?: 
           {colors.length} 种颜色 · 拟改 {changedCount} 种
         </span>
       </div>
+
+      {mediaWarning ? (
+        <div className={styles.warning}>
+          <strong>注意图片</strong>
+          <span>{mediaWarning}</span>
+        </div>
+      ) : null}
+
+      {themeReferences > 0 ? (
+        <div className={styles.themeBlock}>
+          <div className={styles.themeHead}>
+            <strong>主题色</strong>
+            <span>
+              这份 PPT 的设计色定义在主题里，改一处会影响 {themeReferences} 处引用，效果最快
+            </span>
+          </div>
+          <ul className={styles.themeList}>
+            {theme
+              .filter((slot) => slot.references > 0 || slot.slot.startsWith('accent'))
+              .map((slot) => (
+                <li key={slot.slot} className={styles.themeRow}>
+                  <input
+                    type="color"
+                    className={styles.swatch}
+                    value={`#${mapping[slot.hex] ?? slot.hex}`}
+                    onChange={(event) =>
+                      setMapping((prev) => ({
+                        ...prev,
+                        [slot.hex]: event.target.value.replace('#', '').toUpperCase(),
+                      }))
+                    }
+                  />
+                  <span className={styles.slotName}>{THEME_SLOT_LABELS[slot.slot] ?? slot.slot}</span>
+                  <span className={styles.hex}>#{mapping[slot.hex] ?? slot.hex}</span>
+                  <span className={styles.count}>
+                    {slot.references > 0 ? `影响 ${slot.references} 处` : '未使用'}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {changedCount > 0 ? (
+        <div className={styles.beforeAfter}>
+          <span className={styles.presetLabel}>配色对照：</span>
+          <div className={styles.swatchRow}>
+            {colors
+              .filter((color) => mapping[color.hex])
+              .slice(0, 12)
+              .map((color) => (
+                <span key={color.hex} className={styles.pair} title={`#${color.hex} → #${mapping[color.hex]}`}>
+                  <span className={styles.dot} style={{ background: `#${color.hex}` }} />
+                  <span className={styles.pairArrow}>→</span>
+                  <span className={styles.dot} style={{ background: `#${mapping[color.hex]}` }} />
+                </span>
+              ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.presets}>
         <span className={styles.presetLabel}>一键换配色：</span>
