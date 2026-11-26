@@ -90,13 +90,46 @@ const anthropicHeaders = (apiKey: string, beta: boolean): Record<string, string>
   ...(beta ? { 'anthropic-beta': FILES_BETA } : {}),
 })
 
-/** 用 GET /models 校验 API Key（不产生费用） */
-export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promise<void> => {
-  await request(`${API_ORIGIN}/models`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${apiKey}` },
+/**
+ * 校验 API Key。
+ *
+ * 优先用服务商的无费用接口（DeepSeek 的 GET /models）。
+ * 没有这个接口的服务商（如百炼）只能发一个 max_tokens=1 的最小请求 ——
+ * 会产生极少量费用，但总比「填对 Key 却永远报错」好。
+ */
+export const verifyApiKey = async (
+  apiKey: string,
+  signal?: AbortSignal,
+  provider?: {
+    verify: { kind: 'models'; url: string; header: 'bearer' | 'x-api-key' } | { kind: 'probe'; model: string }
+    baseUrl: string
+  }
+): Promise<void> => {
+  const config = provider?.verify ?? {
+    kind: 'models' as const,
+    url: `${API_ORIGIN}/models`,
+    header: 'bearer' as const,
+  }
+  if (config.kind === 'models') {
+    const headers: Record<string, string> =
+      config.header === 'bearer' ? { Authorization: `Bearer ${apiKey}` } : { 'x-api-key': apiKey }
+    await request(config.url, { method: 'GET', headers, signal })
+    return
+  }
+  // 没有 /models 的服务商：发一个最小请求，能拿到任何合法响应就说明 Key 可用
+  const baseUrl = provider?.baseUrl ?? `${API_ORIGIN}/anthropic/v1`
+  const response = await request(`${baseUrl}/messages`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    }),
     signal,
   })
+  // request() 非 2xx 会抛错，走到这里说明 Key 有效
+  await response.json().catch(() => undefined)
 }
 
 /**
@@ -145,9 +178,11 @@ const hasFile = (body: CreateMessageRequest) =>
 export async function* streamMessage(
   apiKey: string,
   body: CreateMessageRequest,
-  signal: AbortSignal
+  signal: AbortSignal,
+  /** Messages 接口前缀；不传就用构建期默认的 DeepSeek 官方 */
+  baseUrl: string = ANTHROPIC_BASE_URL
 ): AsyncGenerator<MessageStreamEvent> {
-  const response = await request(`${ANTHROPIC_BASE_URL}/messages`, {
+  const response = await request(`${baseUrl}/messages`, {
     method: 'POST',
     headers: {
       ...anthropicHeaders(apiKey, hasFile(body)),

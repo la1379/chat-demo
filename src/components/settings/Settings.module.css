@@ -551,3 +551,11 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
 }
+
+/* 服务商下方的说明文字：换服务商清空 Key、不支持的能力等 */
+.hint {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}

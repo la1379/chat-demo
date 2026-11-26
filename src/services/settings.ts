@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
+import type { ProviderId } from './api/providers.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
@@ -10,6 +11,8 @@ export type ThemePreference = 'light' | 'dark' | 'system'
 /** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态 */
 type Settings = {
   apiKey: string | null
+  /** 当前服务商；换服务商需要重填对应 Key */
+  provider: ProviderId
   locale: Locale
   themePreference: ThemePreference
   location: UserLocation | null
@@ -21,6 +24,7 @@ type Settings = {
 
 const KEYS = {
   apiKey: 'chat-demo:api-key',
+  provider: 'chat-demo:provider',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
   themePreference: 'chat-demo:theme-preference',
@@ -89,6 +93,7 @@ const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide'
 
 export const useSettings = create<Settings>(() => ({
   apiKey: read(KEYS.apiKey),
+  provider: (read(KEYS.provider) as ProviderId | null) ?? 'deepseek',
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -122,6 +127,21 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
 export const setApiKey = (apiKey: string | null) => {
   write(KEYS.apiKey, apiKey)
   useSettings.setState({ apiKey })
+}
+
+/**
+ * 换服务商。
+ *
+ * 同时清空 Key：两家的 Key 互不通用，留着上一家的 Key 只会得到
+ * 「填好了却一直 401」这种最难查的状态。
+ */
+export const setProvider = (provider: ProviderId) => {
+  if (useSettings.getState().provider === provider) {
+    return
+  }
+  write(KEYS.provider, provider)
+  write(KEYS.apiKey, null)
+  useSettings.setState({ provider, apiKey: null })
 }
 
 export const setThinking = (thinking: boolean) => {

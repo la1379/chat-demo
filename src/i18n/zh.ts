@@ -206,4 +206,9 @@ export const zh = {
   balanceChecking: '查询中…',
   balanceRefresh: '重新查询',
   balanceUnavailable: '已不可用',
+  providerLabel: '服务商',
+  providerSwitchHint: '换服务商会清空已填的 Key —— 两家的 Key 互不通用。',
+  providerUnverified: '这家的接入尚未端到端验证，遇到问题先换回 DeepSeek 官方。',
+  providerNoFiles: '这家不支持附件上传，图片和文档相关的功能不可用。',
+  providerNoBalance: '这家没有余额查询接口。',
 } as const

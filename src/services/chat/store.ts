@@ -12,6 +12,8 @@ import {
   useUploads,
 } from '../attachments.js'
 import { useSettings } from '../settings.js'
+import { requestPersistentStorage } from './persistStorage.js'
+import { getProvider, type ProviderId } from '../api/providers.js'
 import { SYSTEM_PROMPT } from './systemPrompt.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -42,6 +44,10 @@ import {
 
 /** deepseek-flash 同时支持深度思考与图片输入 */
 const MODEL: ChatModel = 'deepseek-flash'
+
+/** 当前服务商的默认模型：换到百炼时模型名必须跟着换，否则请求会被拒 */
+const modelForProvider = (providerId: ProviderId): ChatModel =>
+  (getProvider(providerId).models[0] as ChatModel | undefined) ?? MODEL
 /** 所有生成请求统一携带的助手身份说明与制表 / 制演示文稿的产出约定 */
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
@@ -305,6 +311,9 @@ export const initChat = (): Promise<void> => {
   const epoch = historyEpoch
   set({ initError: false })
   initTask = (async () => {
+    // 顺便申请持久化存储豁免：浏览器默认把本地数据当缓存，磁盘紧张时可能清掉。
+    // 这里不 await，也不影响启动 —— 拿不到豁免只是少一层保护。
+    void requestPersistentStorage()
     try {
       const summaries = await db.loadSessionSummaries()
       if (epoch === historyEpoch) {
@@ -1024,7 +1033,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         const events = streamMessage(
           useSettings.getState().apiKey ?? '',
           {
-            model: initial.model ?? MODEL,
+            model: initial.model ?? modelForProvider(useSettings.getState().provider),
             system: SYSTEM_PROMPT,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
@@ -1032,7 +1041,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             tools: serverTools(initial.search ?? false),
             ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
           },
-          controller.signal
+          controller.signal,
+          getProvider(useSettings.getState().provider).baseUrl
         )
         const blockIndexes = new Map<number, number>()
         for await (const event of events) {

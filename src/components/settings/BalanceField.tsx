@@ -13,6 +13,7 @@ import styles from './Settings.module.css'
 export const BalanceField = () => {
   const t = useTranslate()
   const apiKey = useSettings((state) => state.apiKey)
+  const providerId = useSettings((state) => state.provider)
   const [balance, setBalance] = useState<BalanceInfo | null>(null)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState('')
@@ -25,7 +26,7 @@ export const BalanceField = () => {
     setChecking(true)
     setError('')
     try {
-      setBalance(await fetchBalance(apiKey))
+      setBalance(await fetchBalance(apiKey, undefined, providerId))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
       setBalance(null)

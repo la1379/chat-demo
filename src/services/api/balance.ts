@@ -1,4 +1,5 @@
 import { API_ORIGIN } from './client.js'
+import { getProvider, type ProviderId } from './providers.js'
 
 /**
  * 余额查询。
@@ -25,8 +26,14 @@ type RawBalance = {
 }
 
 /** 查询余额。失败时抛错，调用方决定是静默还是提示。 */
-export const fetchBalance = async (apiKey: string, signal?: AbortSignal): Promise<BalanceInfo> => {
-  const response = await fetch(`${API_ORIGIN}/user/balance`, {
+export const fetchBalance = async (
+  apiKey: string,
+  signal?: AbortSignal,
+  providerId: ProviderId = 'deepseek'
+): Promise<BalanceInfo> => {
+  // 只有 DeepSeek 有余额接口；其他服务商这里直接说明，不发无谓的请求
+  const url = getProvider(providerId).balanceUrl ?? `${API_ORIGIN}/user/balance`
+  const response = await fetch(url, {
     method: 'GET',
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
     signal,

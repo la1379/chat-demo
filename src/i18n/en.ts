@@ -215,4 +215,9 @@ export const en = {
   balanceChecking: 'Checking…',
   balanceRefresh: 'Refresh',
   balanceUnavailable: 'unavailable',
+  providerLabel: 'Provider',
+  providerSwitchHint: 'Switching providers clears the saved key — keys are not interchangeable.',
+  providerUnverified: 'This provider is not verified end to end yet; fall back to DeepSeek if it fails.',
+  providerNoFiles: 'This provider does not support attachment uploads.',
+  providerNoBalance: 'This provider has no balance endpoint.',
 } satisfies Record<keyof typeof zh, string>
