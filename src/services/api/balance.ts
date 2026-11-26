@@ -44,9 +44,15 @@ export const fetchBalance = async (apiKey: string, signal?: AbortSignal): Promis
   }
 }
 
-/** 显示用：人民币两位小数，其他币种原样 */
+/**
+ * 显示用：金额固定两位小数。
+ * 只写 maximumFractionDigits 的话 128.50 会显示成 128.5 —— 金额少一位看着不专业。
+ */
 export const formatBalance = (info: BalanceInfo): string => {
   const symbol = info.currency === 'CNY' ? '¥' : info.currency === 'USD' ? '$' : ''
-  const value = info.available.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+  const value = info.available.toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
   return `${symbol}${value}`
 }
