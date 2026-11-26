@@ -1,0 +1,143 @@
+.card {
+  margin: 12px 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.ghost {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--dsw-alias-interactive-bg-hover);
+      color: var(--dsw-alias-label-primary);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-button-primary-fill);
+    outline-offset: 1px;
+  }
+}
+
+.plot {
+  padding: 10px 12px 2px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+}
+
+/*
+ * SVG 里的硬编码色值不会跟着主题换 —— 暗色下浅灰网格线会亮得刺眼、
+ * 白色饼图描边会变成一圈白线。所以一律走 CSS 变量。
+ */
+.gridLine {
+  stroke: var(--dsw-alias-border-l2);
+}
+
+.sliceStroke {
+  stroke: var(--dsw-alias-bg-layer-2);
+}
+
+/* SVG 里的文字：用 tabular-nums 让纵轴刻度对齐 */
+.tickText {
+  fill: var(--dsw-alias-label-secondary);
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.legendText {
+  fill: var(--dsw-alias-label-primary);
+  font-size: 11px;
+}
+
+.emptyText {
+  fill: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 4px 14px 12px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.legendDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.raw {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre;
+}
+
+.skeleton {
+  height: 200px;
+  margin: 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-skeleton);
+}
