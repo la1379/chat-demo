@@ -1,4 +1,4 @@
-import { createElement, memo, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
+import { createElement, memo, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import type {
   BlockContent,
@@ -12,6 +12,7 @@ import { CitationLink } from '../search/CitationLink.js'
 import { CodeBlock } from './CodeBlock.js'
 import { ImageAsLink, Link } from './Link.js'
 import { InlineMath, MathBlock } from './MathFormula.js'
+import { compareCells, formatSum, profileColumn } from '../../services/markdown/tableEnhance.js'
 
 const Html = memo(function Html({ value }: { value: string }) {
   if (/^<br\s*\/?>$/i.test(value)) {
@@ -42,37 +43,93 @@ const List = memo(function List({ node, loading }: { node: ListNode; loading: bo
   )
 })
 
+/** 把 mdast 的单元格取成纯文本；排序与合计都基于这个 */
+const cellText = (cell: { children: PhrasingContent[] }): string =>
+  cell.children
+    .map((child) => {
+      if ('value' in child && typeof child.value === 'string') {
+        return child.value
+      }
+      if (child.type === 'inlineCode') {
+        return child.value
+      }
+      return ''
+    })
+    .join('')
+    .trim()
+
 const Table = memo(function Table({ node }: { node: TableNode }) {
-  const columnCount = node.children[0]?.children.length
+  const [sort, setSort] = useState<{ column: number; desc: boolean } | null>(null)
+  const header = node.children[0]
+  const bodyRows = node.children.slice(1)
+  const columnCount = header?.children.length ?? 0
+
+  // 先取纯文本，排序和列分析都要用
+  const rowTexts = bodyRows.map((row) => row.children.map(cellText))
+
+  const profiles = Array.from({ length: columnCount }, (_, columnIndex) =>
+    profileColumn(rowTexts.map((cells) => cells[columnIndex] ?? ''))
+  )
+
+  const order = useMemo(() => {
+    if (!sort) {
+      return null
+    }
+    return rowTexts
+      .map((_, index) => index)
+      .sort((a, b) => {
+        const result = compareCells(rowTexts[a][sort.column] ?? '', rowTexts[b][sort.column] ?? '')
+        return sort.desc ? -result : result
+      })
+  }, [sort, rowTexts])
+
+  const visibleRows = order ? order.map((index) => bodyRows[index]) : bodyRows
+  const hasAnySum = profiles.some((profile) => profile.sum !== null)
+
+  const onSort = (columnIndex: number) => {
+    setSort((prev) =>
+      prev && prev.column === columnIndex ? { column: columnIndex, desc: !prev.desc } : { column: columnIndex, desc: false }
+    )
+  }
+
   return (
     <div className="markdown-table-wrapper">
       <table>
-        {node.children[0] ? (
+        {header ? (
           <thead>
             <tr>
-              {node.children[0].children.map((cell, cellIndex) => {
+              {header.children.map((cell, cellIndex) => {
+                const active = sort?.column === cellIndex
                 return (
-                  <th key={cellIndex}>
-                    <MarkdownPhrasingContent nodes={cell.children} />
+                  <th key={cellIndex} aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : undefined}>
+                    <button
+                      type="button"
+                      className={clsx('markdown-table-sort', active && 'is-active')}
+                      onClick={() => onSort(cellIndex)}
+                      title="点击排序"
+                    >
+                      <MarkdownPhrasingContent nodes={cell.children} />
+                      <span className="markdown-table-sort-icon" aria-hidden="true">
+                        {active ? (sort.desc ? '↓' : '↑') : '↕'}
+                      </span>
+                    </button>
                   </th>
                 )
               })}
             </tr>
           </thead>
         ) : null}
-        {node.children[1] ? (
+        {visibleRows.length > 0 ? (
           <tbody>
-            {node.children.slice(1).map((row, rowIndex) => {
+            {visibleRows.map((row, rowIndex) => {
               const curColumnCount = row.children.length || 0
               return (
-                <tr key={rowIndex}>
-                  {row.children.map((cell, cellIndex) => {
-                    return (
-                      <td key={cellIndex}>
-                        <MarkdownPhrasingContent nodes={cell.children} />
-                      </td>
-                    )
-                  })}
+                <tr key={order ? order[rowIndex] : rowIndex}>
+                  {row.children.map((cell, cellIndex) => (
+                    <td key={cellIndex}>
+                      <MarkdownPhrasingContent nodes={cell.children} />
+                    </td>
+                  ))}
                   {/* 补齐到列数 */}
                   {Array.from({ length: columnCount - curColumnCount }).map((_, idx) => (
                     <td key={`ptd_${idx}`} />
@@ -81,6 +138,25 @@ const Table = memo(function Table({ node }: { node: TableNode }) {
               )
             })}
           </tbody>
+        ) : null}
+        {/*
+          合计只在整列都是数字时出现。把年份、编号这类列相加没有任何意义，
+          给出一个看着像真的、其实错的数字比不给更糟。
+        */}
+        {hasAnySum ? (
+          <tfoot>
+            <tr className="markdown-table-sum">
+              {Array.from({ length: columnCount }).map((_, cellIndex) => (
+                <td key={cellIndex}>
+                  {cellIndex === 0
+                    ? '合计'
+                    : profiles[cellIndex]?.sum !== null
+                      ? formatSum(profiles[cellIndex])
+                      : ''}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         ) : null}
       </table>
     </div>

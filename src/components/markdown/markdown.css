@@ -346,6 +346,54 @@
   overflow-x: auto;
 }
 
+/*
+ * 表头可点击排序。用按钮而不是给 th 绑 onClick：
+ * 键盘用户能 Tab 到它，读屏也能报出这是可操作的。
+ */
+.markdown-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.markdown-table-sort:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.markdown-table-sort:focus-visible {
+  outline: 2px solid var(--dsw-alias-button-primary-fill);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.markdown-table-sort-icon {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.markdown-table-sort.is-active .markdown-table-sort-icon {
+  color: var(--dsw-alias-button-primary-fill);
+}
+
+/* 合计行：和数据行视觉上分开，但不抢眼 */
+.ds-markdown .markdown-table-sum td {
+  border-bottom: none;
+  border-top: 1px solid var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .md-code-block-switch {
   display: flex;
   gap: 4px;

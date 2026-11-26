@@ -9,8 +9,11 @@
  *
  * 用法见 verify/README.md。
  */
+import type { CSSProperties } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ChartCard } from '../src/components/markdown/ChartCard.js'
+import { MailCard } from '../src/components/markdown/MailCard.js'
+import { ChecklistCard } from '../src/components/markdown/ChecklistCard.js'
 import { setupTheme } from '../src/app/theme.js'
 import '../src/app/theme.css'
 import '../src/app/global.css'
@@ -18,6 +21,13 @@ import '../src/app/global.css'
 // 暗色不是靠 prefers-color-scheme 的媒体查询，而是靠 body 上的 data 属性，
 // 所以必须走应用自己的 setupTheme，否则截图永远只看到亮色
 setupTheme()
+
+const LABEL: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--dsw-alias-label-secondary)',
+  margin: '18px 0 0',
+}
 
 /** 每个样本：标签 + 代码块内容 */
 const SAMPLES: { label: string; code: string }[] = [
@@ -87,22 +97,69 @@ const SAMPLES: { label: string; code: string }[] = [
   },
 ]
 
+/** 换行常量：在模板里写转义反斜杠容易出错，统一用它拼 */
+const STRING_NL = String.fromCharCode(10)
+
+const MAILS: { label: string; code: string }[] = [
+  {
+    label: '邮件 · 完整字段',
+    code: JSON.stringify({
+      to: ['zhang@example.com', 'li@example.com'],
+      cc: 'wang@example.com',
+      subject: '关于十月份对账的说明',
+      body: ['张经理：', '', '附件是十月份的对账单，其中第 3 笔金额有调整，请复核。', '', '如有疑问随时联系我。', '', '谢谢！'].join(STRING_NL),
+      note: '记得附上对账单文件',
+    }),
+  },
+  {
+    label: '邮件 · 只有正文',
+    code: JSON.stringify({ body: '收到，我今天下午处理。' }),
+  },
+  { label: '畸形：不是 JSON', code: '{"to": "x@y.com"' },
+]
+
+const LISTS: { label: string; code: string }[] = [
+  {
+    label: '清单 · 分组',
+    code: JSON.stringify({
+      title: '本周待办',
+      items: [
+        { text: '核对十月对账单', group: '财务' },
+        { text: '提交季度报表', group: '财务', checked: true },
+        { text: '联系供应商确认交期', group: '采购' },
+        { text: '安排下周例会', group: '行政' },
+      ],
+    }),
+  },
+  {
+    label: '清单 · 裸数组',
+    code: JSON.stringify(['买菜', '取快递', '交水电费']),
+  },
+  { label: '畸形：空对象', code: '{}' },
+]
+
 const App = () => (
   <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>
     <h1 style={{ fontSize: 20, marginBottom: 20 }}>对话块渲染验证</h1>
+    <h2 style={{ fontSize: 14, marginTop: 24 }}>图表</h2>
     {SAMPLES.map((sample) => (
       <section key={sample.label} style={{ marginBottom: 8 }}>
-        <h2
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--dsw-alias-label-secondary)',
-            margin: '18px 0 0',
-          }}
-        >
-          {sample.label}
-        </h2>
+        <h3 style={LABEL}>{sample.label}</h3>
         <ChartCard code={sample.code} />
+      </section>
+    ))}
+    <h2 style={{ fontSize: 14, marginTop: 24 }}>邮件</h2>
+    {MAILS.map((sample) => (
+      <section key={sample.label} style={{ marginBottom: 8 }}>
+        <h3 style={LABEL}>{sample.label}</h3>
+        <MailCard code={sample.code} />
+      </section>
+    ))}
+    <h2 style={{ fontSize: 14, marginTop: 24 }}>清单</h2>
+    {LISTS.map((sample) => (
+      <section key={sample.label} style={{ marginBottom: 8 }}>
+        <h3 style={LABEL}>{sample.label}</h3>
+        <ChecklistCard code={sample.code} />
       </section>
     ))}
   </div>

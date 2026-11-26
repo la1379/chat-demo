@@ -1,0 +1,119 @@
+.card {
+  margin: 12px 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  flex: none;
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  padding: 8px 14px 12px;
+}
+
+.group + .group {
+  margin-top: 10px;
+}
+
+.groupName {
+  margin: 8px 0 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  margin: 0;
+}
+
+.label,
+.labelOn {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 21px;
+  cursor: pointer;
+  transition: background-color 0.12s;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--dsw-alias-interactive-bg-hover);
+    }
+  }
+}
+
+.box {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 3px 0 0;
+  accent-color: var(--dsw-alias-button-primary-fill);
+  cursor: pointer;
+}
+
+.text {
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+/* 勾掉的条目降低存在感，但仍可读 —— 不能删，用户要能确认自己做过什么 */
+.textOn {
+  min-width: 0;
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration: line-through;
+  overflow-wrap: anywhere;
+}
+
+.raw {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre;
+}
+
+.skeleton {
+  height: 90px;
+  margin: 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-skeleton);
+}

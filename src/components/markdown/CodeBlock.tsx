@@ -13,6 +13,8 @@ import { FileCard, fileKindOf } from './FileCard.js'
 import { MermaidDiagram } from './MermaidDiagram.js'
 import { RecolorPanel } from './RecolorPanel.js'
 import { ChartCard } from './ChartCard.js'
+import { MailCard } from './MailCard.js'
+import { ChecklistCard } from './ChecklistCard.js'
 import styles from './CodeBlock.module.css'
 
 /** 代码块标题栏：左侧语言名，右侧复制 */
@@ -120,6 +122,14 @@ export const CodeBlock = memo(function CodeBlock({
   const chartLang = infostring.trim().toLowerCase()
   if (chartLang === 'chart' || chartLang === 'diagram-chart') {
     return <ChartCard code={code} loading={loading} />
+  }
+  // 邮件草稿：结构化字段 + 一键复制，省得从对话里手动挑正文
+  if (chartLang === 'mail' || chartLang === 'email') {
+    return <MailCard code={code} loading={loading} />
+  }
+  // 清单：可勾选、状态存本地，比只读的 markdown 复选框有用
+  if (chartLang === 'checklist' || chartLang === 'todo') {
+    return <ChecklistCard code={code} loading={loading} />
   }
   return (
     <div className="md-code-block">
