@@ -11,6 +11,7 @@ import { showToast } from '../base/toastState.js'
 import { copyText } from '../../utils/clipboard.js'
 import { FileCard, fileKindOf } from './FileCard.js'
 import { MermaidDiagram } from './MermaidDiagram.js'
+import { RecolorPanel } from './RecolorPanel.js'
 import styles from './CodeBlock.module.css'
 
 /** 代码块标题栏：左侧语言名，右侧复制 */
@@ -109,6 +110,10 @@ export const CodeBlock = memo(function CodeBlock({
   // 文件卡片自带标题栏和操作按钮，不套代码块的外壳
   if (fileKind) {
     return <FileCard code={code} kind={fileKind} loading={loading} />
+  }
+  // 改配色面板：模型在这里放一个 recolor 代码块，就渲染成上传入口
+  if (infostring.trim().toLowerCase() === 'recolor') {
+    return <RecolorPanel loading={loading} />
   }
   return (
     <div className="md-code-block">
